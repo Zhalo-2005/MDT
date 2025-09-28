@@ -129,3 +129,89 @@ CREATE TABLE IF NOT EXISTS `zmdt_dispatch_calls` (
     PRIMARY KEY (`id`),
     UNIQUE KEY `call_id` (`call_id`)
 );
+
+-- New tables for medical records
+CREATE TABLE IF NOT EXISTS `zmdt_medical_records` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `record_id` varchar(20) NOT NULL,
+    `citizenid` varchar(50) NOT NULL,
+    `doctor_id` varchar(50) NOT NULL,
+    `doctor_name` varchar(100) NOT NULL,
+    `diagnosis` text NOT NULL,
+    `treatment` text NOT NULL,
+    `notes` text DEFAULT NULL,
+    `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `record_id` (`record_id`)
+);
+
+CREATE TABLE IF NOT EXISTS `zmdt_medical_flags` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `citizenid` varchar(50) NOT NULL,
+    `flag_id` varchar(50) NOT NULL,
+    `flag_label` varchar(100) NOT NULL,
+    `description` text DEFAULT NULL,
+    `added_by` varchar(50) NOT NULL,
+    `added_by_name` varchar(100) NOT NULL,
+    `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`)
+);
+
+-- Table for evidence photos
+CREATE TABLE IF NOT EXISTS `zmdt_evidence_photos` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `incident_id` varchar(20) NOT NULL,
+    `photo_url` text NOT NULL,
+    `description` text DEFAULT NULL,
+    `taken_by` varchar(50) NOT NULL,
+    `taken_by_name` varchar(100) NOT NULL,
+    `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`)
+);
+
+-- Table for department accounts
+CREATE TABLE IF NOT EXISTS `zmdt_department_accounts` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `department` varchar(50) NOT NULL,
+    `balance` int(11) DEFAULT 0,
+    `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `department` (`department`)
+);
+
+-- Table for department transactions
+CREATE TABLE IF NOT EXISTS `zmdt_department_transactions` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `department` varchar(50) NOT NULL,
+    `amount` int(11) NOT NULL,
+    `type` enum('deposit','withdrawal') NOT NULL,
+    `description` text NOT NULL,
+    `created_by` varchar(50) NOT NULL,
+    `created_by_name` varchar(100) NOT NULL,
+    `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`)
+);
+
+-- Insert default department accounts
+INSERT INTO `zmdt_department_accounts` (`department`, `balance`) VALUES
+('police', 0),
+('sheriff', 0),
+('ambulance', 0);
+
+-- Create procedure to clean up old audit logs
+DELIMITER //
+CREATE PROCEDURE IF NOT EXISTS `zmdt_cleanup_audit_logs`()
+BEGIN
+    DECLARE retention_days INT;
+    SET retention_days = 30; -- Default value, can be overridden by config
+    
+    DELETE FROM `zmdt_audit_logs` WHERE `created_at` < DATE_SUB(NOW(), INTERVAL retention_days DAY);
+END //
+DELIMITER ;
+
+-- Create event to run cleanup procedure daily
+CREATE EVENT IF NOT EXISTS `zmdt_daily_audit_cleanup`
+ON SCHEDULE EVERY 1 DAY
+DO
+    CALL `zmdt_cleanup_audit_logs`();

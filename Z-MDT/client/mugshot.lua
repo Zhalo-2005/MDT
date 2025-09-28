@@ -1,10 +1,16 @@
 local inMugshot = false
 local mugshotCam = nil
+local previousCoords = nil
+local previousHeading = nil
 
+-- Take mugshot of a citizen
 function TakeMugshot(citizenid)
     if inMugshot then return end
     
     local playerPed = PlayerPedId()
+    previousCoords = GetEntityCoords(playerPed)
+    previousHeading = GetEntityHeading(playerPed)
+    
     local coords = Config.Mugshot.coords
     local camCoords = Config.Mugshot.camera_coords
     
@@ -34,14 +40,30 @@ function TakeMugshot(citizenid)
             
             if IsControlJustPressed(0, 38) then -- E key
                 -- Take screenshot
-                exports['screenshot-basic']:requestScreenshotUpload('https://your-image-upload-service.com/upload', 'image', function(data)
-                    local imageUrl = json.decode(data).url
+                exports['screenshot-basic']:requestScreenshotUpload(Config.Mugshot.upload_url, 'image', function(data)
+                    local response = json.decode(data)
+                    local imageUrl = ''
                     
-                    -- Save mugshot to database
-                    TriggerServerEvent('zmdt:server:saveMugshot', citizenid, imageUrl)
+                    -- Handle different image upload services
+                    if response.url then
+                        imageUrl = response.url
+                    elseif response.data and response.data.url then
+                        imageUrl = response.data.url
+                    elseif response.link then
+                        imageUrl = response.link
+                    elseif response.image then
+                        imageUrl = response.image
+                    end
+                    
+                    if imageUrl ~= '' then
+                        -- Save mugshot to database
+                        TriggerServerEvent('zmdt:server:saveMugshot', citizenid, imageUrl)
+                        QBCore.Functions.Notify('Mugshot taken successfully', 'success')
+                    else
+                        QBCore.Functions.Notify('Failed to upload mugshot', 'error')
+                    end
                     
                     EndMugshot()
-                    QBCore.Functions.Notify('Mugshot taken successfully', 'success')
                 end)
                 break
             elseif IsControlJustPressed(0, 47) then -- G key
@@ -53,10 +75,13 @@ function TakeMugshot(citizenid)
             DisableAllControlActions(0)
             EnableControlAction(0, 1, true) -- Mouse look
             EnableControlAction(0, 2, true) -- Mouse look
+            EnableControlAction(0, 38, true) -- E key
+            EnableControlAction(0, 47, true) -- G key
         end
     end)
 end
 
+-- End mugshot process and return player to previous position
 function EndMugshot()
     if not inMugshot then return end
     
@@ -73,14 +98,75 @@ function EndMugshot()
     local playerPed = PlayerPedId()
     FreezeEntityPosition(playerPed, false)
     
-    -- Teleport back (you might want to save previous coords)
-    SetEntityCoords(playerPed, 441.0, -981.0, 30.0) -- Police station
+    -- Teleport back to previous position
+    if previousCoords and previousHeading then
+        SetEntityCoords(playerPed, previousCoords.x, previousCoords.y, previousCoords.z)
+        SetEntityHeading(playerPed, previousHeading)
+        previousCoords = nil
+        previousHeading = nil
+    else
+        -- Fallback to police station if previous coords not available
+        SetEntityCoords(playerPed, 441.0, -981.0, 30.0)
+    end
 end
 
--- Server event for saving mugshot
-RegisterNetEvent('zmdt:server:saveMugshot', function(citizenid, imageUrl)
-    MySQL.query('UPDATE zmdt_citizens SET mugshot = ? WHERE citizenid = ?', {imageUrl, citizenid})
+-- Take photo for evidence (not a mugshot)
+function TakeEvidencePhoto(incidentId)
+    if inMugshot then return end
     
-    -- Log action
-    LogAction(source, 'TAKE_MUGSHOT', 'Took mugshot for ' .. citizenid)
+    -- Show instructions
+    QBCore.Functions.Notify('Press [E] to take photo, [G] to cancel', 'primary', 10000)
+    
+    -- Create thread for input handling
+    CreateThread(function()
+        local inputActive = true
+        
+        while inputActive do
+            Wait(0)
+            
+            if IsControlJustPressed(0, 38) then -- E key
+                -- Take screenshot
+                exports['screenshot-basic']:requestScreenshotUpload(Config.Mugshot.upload_url, 'image', function(data)
+                    local response = json.decode(data)
+                    local imageUrl = ''
+                    
+                    -- Handle different image upload services
+                    if response.url then
+                        imageUrl = response.url
+                    elseif response.data and response.data.url then
+                        imageUrl = response.data.url
+                    elseif response.link then
+                        imageUrl = response.link
+                    elseif response.image then
+                        imageUrl = response.image
+                    end
+                    
+                    if imageUrl ~= '' then
+                        -- Save evidence photo to database
+                        TriggerServerEvent('zmdt:server:saveEvidencePhoto', incidentId, imageUrl)
+                        QBCore.Functions.Notify('Photo taken and added to evidence', 'success')
+                    else
+                        QBCore.Functions.Notify('Failed to upload photo', 'error')
+                    end
+                    
+                    inputActive = false
+                end)
+                break
+            elseif IsControlJustPressed(0, 47) then -- G key
+                QBCore.Functions.Notify('Photo cancelled', 'error')
+                inputActive = false
+                break
+            end
+        end
+    end)
+end
+
+-- Register NUI callback for taking evidence photos
+RegisterNUICallback('takeEvidencePhoto', function(data, cb)
+    TakeEvidencePhoto(data.incidentId)
+    cb('ok')
 end)
+
+-- Export functions
+exports('TakeMugshot', TakeMugshot)
+exports('TakeEvidencePhoto', TakeEvidencePhoto)
