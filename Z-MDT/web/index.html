@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Z-MDT System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div id="mdt-container" class="hidden">
+        <div class="tablet-frame">
+            <div class="tablet-screen">
+                <!-- Header -->
+                <div class="mdt-header">
+                    <div class="header-left">
+                        <img src="assets/badge.png" alt="Badge" class="badge-icon">
+                        <div class="officer-info">
+                            <span class="officer-name" id="officerName">Officer Name</span>
+                            <span class="officer-badge" id="officerBadge">Badge #1234</span>
+                        </div>
+                    </div>
+                    <div class="header-center">
+                        <h1>Z-MDT System</h1>
+                        <span class="current-time" id="currentTime"></span>
+                    </div>
+                    <div class="header-right">
+                        <button class="close-btn" onclick="closeMDT()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <div class="nav-tabs">
+                    <button class="tab-btn active" data-tab="dashboard">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </button>
+                    <button class="tab-btn" data-tab="people">
+                        <i class="fas fa-users"></i> People
+                    </button>
+                    <button class="tab-btn" data-tab="vehicles">
+                        <i class="fas fa-car"></i> Vehicles
+                    </button>
+                    <button class="tab-btn" data-tab="incidents">
+                        <i class="fas fa-file-alt"></i> Incidents
+                    </button>
+                    <button class="tab-btn" data-tab="warrants">
+                        <i class="fas fa-gavel"></i> Warrants
+                    </button>
+                    <button class="tab-btn" data-tab="fines">
+                        <i class="fas fa-receipt"></i> Fines
+                    </button>
+                    <button class="tab-btn" data-tab="dispatch">
+                        <i class="fas fa-radio"></i> Dispatch
+                    </button>
+                    <button class="tab-btn" data-tab="custody" id="custodyTab">
+                        <i class="fas fa-lock"></i> Custody
+                    </button>
+                </div>
+
+                <!-- Content Area -->
+                <div class="content-area">
+                    <!-- Dashboard Tab -->
+                    <div class="tab-content active" id="dashboard">
+                        <div class="dashboard-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h3 id="totalCitizens">0</h3>
+                                    <p>Total Citizens</p>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">
+                                    <i class="fas fa-car"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h3 id="totalVehicles">0</h3>
+                                    <p>Registered Vehicles</p>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h3 id="activeIncidents">0</h3>
+                                    <p>Active Incidents</p>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">
+                                    <i class="fas fa-gavel"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h3 id="activeWarrants">0</h3>
+                                    <p>Active Warrants</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="recent-activity">
+                            <h3>Recent Activity</h3>
+                            <div class="activity-list" id="recentActivity">
+                                <!-- Activity items will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- People Tab -->
+                    <div class="tab-content" id="people">
+                        <div class="search-section">
+                            <div class="search-bar">
+                                <input type="text" id="personSearch" placeholder="Search by name or citizen ID...">
+                                <button onclick="searchPerson()">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="person-results" id="personResults">
+                            <!-- Search results will appear here -->
+                        </div>
+                    </div>
+
+                    <!-- Vehicles Tab -->
+                    <div class="tab-content" id="vehicles">
+                        <div class="search-section">
+                            <div class="search-bar">
+                                <input type="text" id="vehicleSearch" placeholder="Search by license plate...">
+                                <button onclick="searchVehicle()">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="vehicle-results" id="vehicleResults">
+                            <!-- Search results will appear here -->
+                        </div>
+                    </div>
+
+                    <!-- Incidents Tab -->
+                    <div class="tab-content" id="incidents">
+                        <div class="section-header">
+                            <h3>Incidents</h3>
+                            <button class="btn-primary" onclick="showCreateIncident()">
+                                <i class="fas fa-plus"></i> Create Incident
+                            </button>
+                        </div>
+
+                        <div class="incidents-list" id="incidentsList">
+                            <!-- Incidents will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Dispatch Tab -->
+                    <div class="tab-content" id="dispatch">
+                        <div class="section-header">
+                            <h3>Active Dispatch Calls</h3>
+                            <button class="btn-primary" onclick="showCreateDispatch()">
+                                <i class="fas fa-plus"></i> Create Call
+                            </button>
+                        </div>
+
+                        <div class="dispatch-calls" id="dispatchCalls">
+                            <!-- Dispatch calls will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Other tabs content... -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="createIncidentModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New Incident</h3>
+                <button class="close-modal" onclick="closeModal('createIncidentModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="incidentForm">
+                    <div class="form-group">
+                        <label>Title</label>
+                        <input type="text" id="incidentTitle" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="incidentDescription" rows="4" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Location</label>
+                        <input type="text" id="incidentLocation" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Priority</label>
+                        <select id="incidentPriority">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeModal('createIncidentModal')">Cancel</button>
+                        <button type="submit" class="btn-primary">Create Incident</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
