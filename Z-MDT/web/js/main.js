@@ -628,6 +628,33 @@ function submitWarrant(citizenid, modalId) {
     });
 }
 
+function createIncident() {
+    const title = document.getElementById('incidentTitle').value.trim();
+    const description = document.getElementById('incidentDescription').value.trim();
+    const location = document.getElementById('incidentLocation').value.trim();
+    const priority = document.getElementById('incidentPriority').value;
+    if (!title || !description || !location) {
+        notify('Please fill in all fields', 'error');
+        return;
+    }
+    fetch('https://zmdt/createIncident', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description, location, priority })
+    })
+    .then(res => res.json())
+    .then(response => {
+        if (response.success) {
+            closeModal('createIncidentModal');
+            notify('Incident created successfully', 'success');
+            loadIncidents();
+        } else {
+            notify('Failed to create incident', 'error');
+        }
+    })
+    .catch(() => notify('Failed to create incident', 'error'));
+}
+
 // Utility Functions
 function showLoading(containerId) {
     const container = document.getElementById(containerId);

@@ -20,7 +20,7 @@ client_scripts {
     'client/dispatch.lua',
     'client/payments.lua',
     'client/medical.lua'
-}
+
 
     '@oxmysql/lib/MySQL.lua',
     'server/main.lua',

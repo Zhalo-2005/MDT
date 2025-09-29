@@ -76,9 +76,18 @@ QBCore.Functions.CreateCallback('zmdt:server:searchPerson', function(source, cb,
         end)
 
         -- Example: After incident creation
-        RegisterNetEvent('zmdt:server:addIncident', function(data)
-            -- ...existing incident creation code...
+
+        RegisterNUICallback('createIncident', function(data, cb)
+            local src = source
+            local Player = QBCore.Functions.GetPlayer(src)
+            if not Player then cb({success = false}) return end
+
+            -- Insert incident into database
+            MySQL.query('INSERT INTO zmdt_incidents (title, description, location, priority, created_by, created_at, status) VALUES (?, ?, ?, ?, ?, NOW(), "active")', {
+                data.title, data.description, data.location, data.priority, Player.PlayerData.citizenid
+            })
             UpdateDashboard()
+            cb({success = true})
         end)
 
         -- Example: After warrant creation
@@ -454,15 +463,22 @@ RegisterNetEvent('zmdt:server:payFine', function(fineId)
     local fineData = fine[1]
     local amount = fineData.total_amount
     
-    -- Check if player has enough money
-    local bankBalance = Player.PlayerData.money['bank']
-    if bankBalance < amount then
-        TriggerClientEvent('QBCore:Notify', src, 'Insufficient funds', 'error')
-        return
+    -- Check and process payment using configured banking system
+    if Config.Integrations.Banking == 'codm-banking' then
+        local bankBalance = exports['codem-banking']:GetAccountBalance(Player.PlayerData.citizenid)
+        if bankBalance < amount then
+            TriggerClientEvent('QBCore:Notify', src, 'Insufficient funds', 'error')
+            return
+        end
+        exports['codem-banking']:RemoveAccountMoney(Player.PlayerData.citizenid, amount)
+    else
+        local bankBalance = Player.PlayerData.money['bank']
+        if bankBalance < amount then
+            TriggerClientEvent('QBCore:Notify', src, 'Insufficient funds', 'error')
+            return
+        end
+        Player.Functions.RemoveMoney('bank', amount, 'fine-payment')
     end
-    
-    -- Process payment
-    Player.Functions.RemoveMoney('bank', amount, 'fine-payment')
     
     -- Update fine status
     MySQL.query('UPDATE zmdt_fines SET status = "paid", paid_at = NOW() WHERE fine_id = ?', {fineId})
