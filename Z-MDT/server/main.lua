@@ -67,7 +67,7 @@ local function hasMDTAccess(job)
 end
 
 -- NUI Callback: Get Dashboard Statistics
-RegisterNUICallback('getDashboardStats', function(data, cb)
+RegisterServerEvent('getDashboardStats', function(data, cb)
     local stats = {
         citizens = 0,
         vehicles = 0,
@@ -108,7 +108,7 @@ RegisterNUICallback('getDashboardStats', function(data, cb)
 end)
 
 -- NUI Callback: Search Person
-RegisterNUICallback('searchPerson', function(data, cb)
+RegisterServerEvent('searchPerson', function(data, cb)
     local query = data.query
     
     -- Search in zmdt_citizens first
@@ -165,7 +165,7 @@ RegisterNUICallback('searchPerson', function(data, cb)
 end)
 
 -- NUI Callback: Search Vehicle
-RegisterNUICallback('searchVehicle', function(data, cb)
+RegisterServerEvent('searchVehicle', function(data, cb)
     local query = data.query:upper() -- Ensure uppercase for license plates
     
     -- Search in player_vehicles first
@@ -206,7 +206,7 @@ RegisterNUICallback('searchVehicle', function(data, cb)
 end)
 
 -- NUI Callback: Create Incident
-RegisterNUICallback('createIncident', function(data, cb)
+RegisterServerEvent('createIncident', function(data, cb)
     local src = source
     local Player = getPlayerData(src)
     if not Player then 
@@ -262,7 +262,7 @@ RegisterNUICallback('createIncident', function(data, cb)
 end)
 
 -- NUI Callback: Get MDT Data
-RegisterNUICallback('getMDTData', function(data, cb)
+RegisterServerEvent('getMDTData', function(data, cb)
     local src = source
     local Player = getPlayerData(src)
     if not Player then 
