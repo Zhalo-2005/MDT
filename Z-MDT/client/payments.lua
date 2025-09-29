@@ -1,5 +1,6 @@
 -- Z-MDT Fine Payment System
 
+local QBCore = exports['qb-core']:GetCoreObject()
 local paymentBlips = {}
 local activePaymentLocations = {}
 
@@ -158,19 +159,7 @@ RegisterNetEvent('zmdt:client:removeFineBlip', function(fineId)
     end
 end)
 
--- Get player's unpaid fines
-QBCore.Functions.CreateCallback('zmdt:server:getPlayerFines', function(source, cb)
-    local Player = QBCore.Functions.GetPlayer(source)
-    if not Player then return cb({success = false, message = 'Player not found'}) end
-    
-    -- Get unpaid fines for player
-    local fines = MySQL.query.await('SELECT * FROM zmdt_fines WHERE citizenid = ? AND status = ? ORDER BY created_at DESC', {
-        Player.PlayerData.citizenid,
-        'unpaid'
-    })
-    
-    cb({success = true, data = fines or {}})
-end)
+-- Get player's unpaid fines (server-side callback moved to server files)
 
 -- Clean up on resource stop
 AddEventHandler('onResourceStop', function(resourceName)

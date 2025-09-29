@@ -45,7 +45,7 @@ end
 -- Tablet Usage
 RegisterNetEvent('zmdt:client:useTablet', function()
     if not HasMDTAccess() then
-        QBCore.Functions.Notify("You do not have access to the MDT system", 'error')
+        QBCore.Functions.Notify('You don\\'t have access to the MDT system', 'error')
         return
     end
     
@@ -68,6 +68,7 @@ function AttachTabletProp()
     
     local ped = PlayerPedId()
     local tabletObj = CreateObject(tabletPropName, 0.0, 0.0, 0.0, true, true, false)
+    
     AttachEntityToEntity(tabletObj, ped, GetPedBoneIndex(ped, tabletBone), 0.03, 0.002, -0.0, 10.0, 160.0, 0.0, true, true, false, true, 1, true)
     SetModelAsNoLongerNeeded(tabletPropName)
     
@@ -87,7 +88,7 @@ function RemoveTabletProp()
     tabletProp = nil
 end
 
--- Open MDT
+-- Open MDT interface
 function OpenMDT()
     if isTabletOpen then return end
     
@@ -97,9 +98,9 @@ function OpenMDT()
     -- Attach tablet prop
     AttachTabletProp()
     
-    -- Get MDT data
+    -- Get player data for MDT
     QBCore.Functions.TriggerCallback('zmdt:server:getMDTData', function(data)
-        if data then
+        if data and data.player then
             SendNUIMessage({
                 action = 'openMDT',
                 data = data
@@ -125,7 +126,7 @@ function OpenMDT()
     end)
 end
 
--- Close MDT
+-- Close MDT interface
 function CloseMDT()
     if not isTabletOpen then return end
     
@@ -159,6 +160,7 @@ RegisterNUICallback('searchVehicle', function(data, cb)
 end)
 
 RegisterNUICallback('createIncident', function(data, cb)
+    local src = source
     TriggerServerEvent('zmdt:server:createIncident', data)
     cb('ok')
 end)
@@ -203,7 +205,7 @@ RegisterNUICallback('createMedicalRecord', function(data, cb)
     cb('ok')
 end)
 
--- Events
+-- Blip Management
 RegisterNetEvent('zmdt:client:createFineBlip', function(coords, fineId)
     local blip = AddBlipForCoord(coords.x, coords.y, coords.z)
     SetBlipSprite(blip, Config.Blips.fine_payment.sprite)
@@ -213,6 +215,8 @@ RegisterNetEvent('zmdt:client:createFineBlip', function(coords, fineId)
     BeginTextCommandSetBlipName('STRING')
     AddTextComponentString(Config.Blips.fine_payment.label)
     EndTextCommandSetBlipName(blip)
+    
+    currentBlips[fineId] = blip
 end)
 
 RegisterNetEvent('zmdt:client:removeFineBlip', function(fineId)
@@ -252,22 +256,23 @@ end)
 
 -- Item usage
 if Config.Integrations.Inventory == 'qb-inventory' then
-    QBCore.Functions.CreateUseableItem(Config.TabletItem, function(source, item)
-        TriggerClientEvent('zmdt:client:useTablet', source)
+    QBCore.Functions.CreateUseableItem(Config.TabletItem, function(source)
+        TriggerEvent('zmdt:client:useTablet')
     end)
 elseif GetResourceState('ox_inventory') ~= 'missing' then
+    -- ox_inventory integration is handled via exports in items.lua
     exports('useTablet', function(data, slot)
         TriggerEvent('zmdt:client:useTablet')
     end)
 end
 
--- Mugshot function
+-- Mugshot functionality
 function TakeMugshot(citizenid)
-    -- Placeholder for mugshot functionality
+    -- This would need to be implemented with proper camera functionality
     QBCore.Functions.Notify('Mugshot functionality coming soon', 'info')
 end
 
--- Exports
+-- Export functions
 exports('HasMDTAccess', HasMDTAccess)
 exports('OpenMDT', OpenMDT)
 exports('CloseMDT', CloseMDT)

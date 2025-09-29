@@ -34,8 +34,8 @@ end
 
 -- For qb-inventory
 if Config.Integrations.Inventory == 'qb-inventory' then
-    -- Add items to QBCore shared items
-    QBCore.Functions.AddItem('zmdt_tablet', {
+    -- Add items to QBCore shared items (correct method)
+    QBCore.Shared.Items['zmdt_tablet'] = {
         name = 'zmdt_tablet',
         label = 'Police Tablet',
         weight = 1000,
@@ -46,9 +46,9 @@ if Config.Integrations.Inventory == 'qb-inventory' then
         shouldClose = true,
         combinable = nil,
         description = 'Mobile Data Terminal for law enforcement'
-    })
+    }
     
-    QBCore.Functions.AddItem('zmdt_medical_tablet', {
+    QBCore.Shared.Items['zmdt_medical_tablet'] = {
         name = 'zmdt_medical_tablet',
         label = 'Medical Tablet',
         weight = 1000,
@@ -59,5 +59,5 @@ if Config.Integrations.Inventory == 'qb-inventory' then
         shouldClose = true,
         combinable = nil,
         description = 'Mobile Data Terminal for medical personnel'
-    })
+    }
 end

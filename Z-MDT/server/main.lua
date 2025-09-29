@@ -312,3 +312,17 @@ end
 exports('hasMDTAccess', hasMDTAccess)
 exports('getPlayerData', getPlayerData)
 exports('executeQuery', executeQuery)
+
+   -- Get player's unpaid fines
+   QBCore.Functions.CreateCallback('zmdt:server:getPlayerFines', function(source, cb)
+       local Player = QBCore.Functions.GetPlayer(source)
+       if not Player then return cb({success = false, message = 'Player not found'}) end
+       
+       -- Get unpaid fines for player
+       local fines = MySQL.query.await('SELECT * FROM zmdt_fines WHERE citizenid = ? AND status = ? ORDER BY created_at DESC', {
+           Player.PlayerData.citizenid,
+           'unpaid'
+       })
+       
+       cb({success = true, data = fines or {}})
+   end)

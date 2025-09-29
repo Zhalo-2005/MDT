@@ -178,8 +178,9 @@ end)
 
 -- Item usage
 if Config.Integrations.Inventory == 'qb-inventory' then
-    QBCore.Functions.CreateUseableItem('zmdt_medical_tablet', function(source)
-        TriggerEvent('zmdt:client:useMedicalTablet')
+    -- Use the correct QBCore method for qb-inventory
+    QBCore.Functions.CreateUseableItem('zmdt_medical_tablet', function(source, item)
+        TriggerClientEvent('zmdt:client:useMedicalTablet', source)
     end)
 elseif GetResourceState('ox_inventory') ~= 'missing' then
     -- ox_inventory integration
@@ -198,7 +199,3 @@ if Config.Integrations.Ambulance == 'wasabi_ambulance' then
 end
 
 -- Export functions
-exports('OpenMedicalTablet', OpenMedicalTablet)
-exports('CreateMedicalIncident', function(patientId, treatment, location)
-    TriggerEvent('zmdt:client:createMedicalIncidentFromTreatment', patientId, treatment, location)
-end)
