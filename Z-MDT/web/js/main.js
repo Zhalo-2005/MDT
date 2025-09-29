@@ -72,7 +72,6 @@ window.addEventListener('message', function(event) {
     }
 });
 
-function updateDashboardUI(dashboard) {
     document.getElementById('totalCitizens').textContent = dashboard.totalCitizens;
     document.getElementById('registeredVehicles').textContent = dashboard.registeredVehicles;
     document.getElementById('activeIncidents').textContent = dashboard.activeIncidents;
@@ -86,6 +85,23 @@ function updateDashboardUI(dashboard) {
         item.textContent = `${activity.time} ${activity.description}`;
         recentActivity.appendChild(item);
     });
+}
+function updateDashboardUI(dashboard) {
+    document.getElementById('totalCitizens').textContent = dashboard.totalCitizens;
+    document.getElementById('registeredVehicles').textContent = dashboard.registeredVehicles;
+    document.getElementById('activeIncidents').textContent = dashboard.activeIncidents;
+    document.getElementById('activeWarrants').textContent = dashboard.activeWarrants;
+    // Update recent activity
+    const recentActivity = document.getElementById('recentActivity');
+    recentActivity.innerHTML = '';
+    if (dashboard.recentActivity && Array.isArray(dashboard.recentActivity)) {
+        dashboard.recentActivity.forEach(function(activity) {
+            const item = document.createElement('div');
+            item.className = 'activity-item';
+            item.textContent = `${activity.time ? activity.time : ''} ${activity.description ? activity.description : ''}`;
+            recentActivity.appendChild(item);
+        });
+    }
 }
 
 // Main Functions

@@ -1,592 +1,164 @@
--- Z-MDT Enhanced Database Schema
--- This schema includes all tables needed for the enhanced MDT system
+-- MDT SQL Schema for QBCore Compatibility
+-- All tables use QBCore foreign keys and avoid duplicating base fields
+-- All default/sample data uses INSERT IGNORE
+-- No unsupported SQL features
 
--- Citizens table (enhanced with more fields)
 CREATE TABLE IF NOT EXISTS `zmdt_citizens` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
-    `citizenid` VARCHAR(50) NOT NULL,
-    `firstname` VARCHAR(50) NOT NULL,
-    `lastname` VARCHAR(50) NOT NULL,
-    `dob` DATE NOT NULL,
-    `phone` VARCHAR(20) DEFAULT NULL,
-    `email` VARCHAR(100) DEFAULT NULL,
-    `address` TEXT DEFAULT NULL,
-    `gender` ENUM('male', 'female', 'other') DEFAULT NULL,
-    `height` INT(11) DEFAULT NULL,
-    `eye_color` VARCHAR(20) DEFAULT NULL,
-    `hair_color` VARCHAR(20) DEFAULT NULL,
-    `ethnicity` VARCHAR(50) DEFAULT NULL,
-    `occupation` VARCHAR(100) DEFAULT NULL,
-    `employer` VARCHAR(100) DEFAULT NULL,
-    `marital_status` ENUM('single', 'married', 'divorced', 'widowed') DEFAULT 'single',
-    `nationality` VARCHAR(50) DEFAULT NULL,
-    `passport_number` VARCHAR(50) DEFAULT NULL,
-    `driver_license` VARCHAR(50) DEFAULT NULL,
-    `gun_license` VARCHAR(50) DEFAULT NULL,
-    `medical_notes` TEXT DEFAULT NULL,
-    `allergies` TEXT DEFAULT NULL,
-    `emergency_contact` TEXT DEFAULT NULL,
-    `photo_url` VARCHAR(255) DEFAULT NULL,
-    `mugshot_url` VARCHAR(255) DEFAULT NULL,
-    `fingerprint_data` TEXT DEFAULT NULL,
-    `dna_profile` VARCHAR(255) DEFAULT NULL,
-    `penalty_points` INT(11) DEFAULT 0,
-    `criminal_record` ENUM('clean', 'minor', 'serious', 'violent') DEFAULT 'clean',
-    `risk_level` ENUM('low', 'medium', 'high', 'extreme') DEFAULT 'low',
-    `gang_affiliation` VARCHAR(100) DEFAULT NULL,
-    `known_associates` TEXT DEFAULT NULL,
+    `citizenid` VARCHAR(50) NOT NULL, -- QBCore foreign key
     `notes` TEXT DEFAULT NULL,
+    `penalty_points` INT(11) DEFAULT 0,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `citizenid` (`citizenid`),
-    KEY `idx_name` (`firstname`, `lastname`),
-    KEY `idx_dob` (`dob`),
-    KEY `idx_phone` (`phone`),
-    KEY `idx_criminal_record` (`criminal_record`),
-    KEY `idx_risk_level` (`risk_level`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    UNIQUE KEY `citizenid` (`citizenid`)
+);
 
--- Vehicles table (enhanced with JG-Dealership integration)
 CREATE TABLE IF NOT EXISTS `zmdt_vehicles` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
-    `plate` VARCHAR(20) NOT NULL,
-    `vin` VARCHAR(50) DEFAULT NULL,
-    `model` VARCHAR(100) NOT NULL,
-    `make` VARCHAR(50) DEFAULT NULL,
-    `year` INT(11) DEFAULT NULL,
-    `color` VARCHAR(30) DEFAULT NULL,
-    `owner` VARCHAR(50) NOT NULL,
-    `co_owner` VARCHAR(50) DEFAULT NULL,
-    `registration_status` ENUM('valid', 'expired', 'suspended', 'revoked') DEFAULT 'valid',
-    `registration_expiry` DATE DEFAULT NULL,
-    `insurance_status` ENUM('valid', 'expired', 'none') DEFAULT 'none',
-    `insurance_company` VARCHAR(100) DEFAULT NULL,
-    `insurance_policy` VARCHAR(100) DEFAULT NULL,
-    `vehicle_type` ENUM('car', 'truck', 'motorcycle', 'boat', 'aircraft', 'other') DEFAULT 'car',
-    `weight_class` VARCHAR(20) DEFAULT NULL,
-    `engine_size` VARCHAR(20) DEFAULT NULL,
-    `fuel_type` VARCHAR(20) DEFAULT NULL,
-    `mileage` INT(11) DEFAULT 0,
-    `purchase_date` DATE DEFAULT NULL,
-    `purchase_price` INT(11) DEFAULT NULL,
-    `current_value` INT(11) DEFAULT NULL,
-    `loan_status` ENUM('paid', 'financed', 'repossessed') DEFAULT 'paid',
-    `loan_company` VARCHAR(100) DEFAULT NULL,
-    `stolen` BOOLEAN DEFAULT FALSE,
-    `stolen_date` DATETIME DEFAULT NULL,
-    `stolen_location` VARCHAR(255) DEFAULT NULL,
-    `impounded` BOOLEAN DEFAULT FALSE,
-    `impound_date` DATETIME DEFAULT NULL,
-    `impound_location` VARCHAR(255) DEFAULT NULL,
-    `impound_reason` TEXT DEFAULT NULL,
-    `wanted_level` ENUM('none', 'low', 'medium', 'high') DEFAULT 'none',
-    `wanted_reason` TEXT DEFAULT NULL,
-    `modifications` TEXT DEFAULT NULL,
+    `plate` VARCHAR(12) NOT NULL, -- QBCore foreign key
     `notes` TEXT DEFAULT NULL,
-    `photo_url` VARCHAR(255) DEFAULT NULL,
+    `stolen` TINYINT(1) DEFAULT 0,
+    `impounded` TINYINT(1) DEFAULT 0,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `plate` (`plate`),
-    KEY `idx_owner` (`owner`),
-    KEY `idx_vin` (`vin`),
-    KEY `idx_stolen` (`stolen`),
-    KEY `idx_impounded` (`impounded`),
-    KEY `idx_registration_status` (`registration_status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    UNIQUE KEY `plate` (`plate`)
+);
 
--- Incidents table (enhanced)
 CREATE TABLE IF NOT EXISTS `zmdt_incidents` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `incident_id` VARCHAR(50) NOT NULL,
     `title` VARCHAR(255) NOT NULL,
     `description` TEXT NOT NULL,
     `location` VARCHAR(255) NOT NULL,
-    `coords` TEXT DEFAULT NULL,
-    `officer_id` VARCHAR(50) NOT NULL,
+    `officer_id` VARCHAR(50) NOT NULL, -- QBCore citizenid
     `officer_name` VARCHAR(100) NOT NULL,
-    `backup_officers` TEXT DEFAULT NULL,
-    `priority` ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium',
-    `type` ENUM('police', 'medical', 'fire', 'traffic', 'other') DEFAULT 'police',
-    `category` VARCHAR(50) DEFAULT NULL,
-    `status` ENUM('pending', 'active', 'resolved', 'closed', 'cancelled') DEFAULT 'pending',
+    `status` ENUM('active','closed','pending') DEFAULT 'active',
+    `priority` ENUM('low','medium','high','critical') DEFAULT 'medium',
+    `type` ENUM('police','medical','fire') DEFAULT 'police',
     `involved_citizens` TEXT DEFAULT NULL,
     `involved_vehicles` TEXT DEFAULT NULL,
-    `involved_officers` TEXT DEFAULT NULL,
-    `witnesses` TEXT DEFAULT NULL,
-    `evidence` TEXT DEFAULT NULL,
-    `photos` TEXT DEFAULT NULL,
-    `videos` TEXT DEFAULT NULL,
-    `audio_recordings` TEXT DEFAULT NULL,
-    `documents` TEXT DEFAULT NULL,
-    `tags` TEXT DEFAULT NULL,
-    `related_incidents` TEXT DEFAULT NULL,
-    `weather_conditions` VARCHAR(100) DEFAULT NULL,
-    `lighting_conditions` VARCHAR(100) DEFAULT NULL,
-    `road_conditions` VARCHAR(100) DEFAULT NULL,
-    `injuries_reported` BOOLEAN DEFAULT FALSE,
-    `fatalities` INT(11) DEFAULT 0,
-    `property_damage` DECIMAL(10,2) DEFAULT 0.00,
-    `estimated_cost` DECIMAL(10,2) DEFAULT 0.00,
-    `insurance_claim` BOOLEAN DEFAULT FALSE,
-    `court_case` BOOLEAN DEFAULT FALSE,
-    `case_number` VARCHAR(50) DEFAULT NULL,
-    `prosecutor` VARCHAR(100) DEFAULT NULL,
-    `defense_attorney` VARCHAR(100) DEFAULT NULL,
-    `judge` VARCHAR(100) DEFAULT NULL,
-    `verdict` VARCHAR(255) DEFAULT NULL,
-    `sentence` TEXT DEFAULT NULL,
-    `appeal_status` VARCHAR(50) DEFAULT NULL,
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    `closed_at` DATETIME DEFAULT NULL,
-    `closed_by` VARCHAR(50) DEFAULT NULL,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `incident_id` (`incident_id`),
-    KEY `idx_officer_id` (`officer_id`),
-    KEY `idx_priority` (`priority`),
-    KEY `idx_type` (`type`),
-    KEY `idx_status` (`status`),
-    KEY `idx_created_at` (`created_at`),
-    KEY `idx_category` (`category`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Fines table (enhanced with government tax system)
-CREATE TABLE IF NOT EXISTS `zmdt_fines` (
-    `id` INT(11) NOT NULL AUTO_INCREMENT,
-    `fine_id` VARCHAR(50) NOT NULL,
-    `citizenid` VARCHAR(50) NOT NULL,
-    `charges` TEXT NOT NULL,
-    `total_amount` DECIMAL(10,2) NOT NULL,
-    `penalty_points` INT(11) DEFAULT 0,
-    `government_tax` DECIMAL(10,2) DEFAULT 0.00,
-    `pd_amount` DECIMAL(10,2) DEFAULT 0.00,
-    `issued_by` VARCHAR(50) NOT NULL,
-    `issued_by_name` VARCHAR(100) NOT NULL,
-    `payment_coords` TEXT DEFAULT NULL,
-    `due_date` DATETIME NOT NULL,
-    `payment_date` DATETIME DEFAULT NULL,
-    `payment_location` VARCHAR(255) DEFAULT NULL,
-    `payment_method` VARCHAR(50) DEFAULT NULL,
-    `status` ENUM('unpaid', 'paid', 'overdue', 'cancelled', 'waived') DEFAULT 'unpaid',
-    `late_fee` DECIMAL(10,2) DEFAULT 0.00,
-    `total_paid` DECIMAL(10,2) DEFAULT 0.00,
-    `payment_plan` BOOLEAN DEFAULT FALSE,
-    `installments` INT(11) DEFAULT 1,
-    `installment_amount` DECIMAL(10,2) DEFAULT 0.00,
-    `next_payment_date` DATETIME DEFAULT NULL,
-    `warrant_issued` BOOLEAN DEFAULT FALSE,
-    `warrant_date` DATETIME DEFAULT NULL,
-    `notes` TEXT DEFAULT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `fine_id` (`fine_id`),
-    KEY `idx_citizenid` (`citizenid`),
-    KEY `idx_status` (`status`),
-    KEY `idx_due_date` (`due_date`),
-    KEY `idx_issued_by` (`issued_by`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    UNIQUE KEY `incident_id` (`incident_id`)
+);
 
--- Warrants table (enhanced)
 CREATE TABLE IF NOT EXISTS `zmdt_warrants` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `warrant_id` VARCHAR(50) NOT NULL,
-    `citizenid` VARCHAR(50) NOT NULL,
+    `citizenid` VARCHAR(50) NOT NULL, -- QBCore foreign key
     `charges` TEXT NOT NULL,
     `description` TEXT NOT NULL,
-    `warrant_type` ENUM('arrest', 'search', 'bench', 'fugitive') DEFAULT 'arrest',
-    `priority` ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium',
-    `issued_by` VARCHAR(50) NOT NULL,
+    `issued_by` VARCHAR(50) NOT NULL, -- QBCore citizenid
     `issued_by_name` VARCHAR(100) NOT NULL,
-    `approved_by` VARCHAR(50) DEFAULT NULL,
-    `approved_by_name` VARCHAR(100) DEFAULT NULL,
-    `bail_amount` DECIMAL(10,2) DEFAULT 0.00,
-    `bond_amount` DECIMAL(10,2) DEFAULT 0.00,
-    `expiration_date` DATETIME DEFAULT NULL,
-    `last_seen_location` VARCHAR(255) DEFAULT NULL,
-    `last_seen_date` DATETIME DEFAULT NULL,
-    `associated_vehicles` TEXT DEFAULT NULL,
-    `associated_gangs` TEXT DEFAULT NULL,
-    `danger_level` ENUM('low', 'medium', 'high', 'extreme') DEFAULT 'medium',
-    `armed_and_dangerous` BOOLEAN DEFAULT FALSE,
-    `known_aliases` TEXT DEFAULT NULL,
-    `photo_url` VARCHAR(255) DEFAULT NULL,
-    `status` ENUM('active', 'served', 'expired', 'cancelled', 'recalled') DEFAULT 'active',
-    `served_by` VARCHAR(50) DEFAULT NULL,
-    `served_by_name` VARCHAR(100) DEFAULT NULL,
-    `served_date` DATETIME DEFAULT NULL,
-    `served_location` VARCHAR(255) DEFAULT NULL,
-    `notes` TEXT DEFAULT NULL,
+    `status` ENUM('active','executed','cancelled') DEFAULT 'active',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `warrant_id` (`warrant_id`),
-    KEY `idx_citizenid` (`citizenid`),
-    KEY `idx_status` (`status`),
-    KEY `idx_priority` (`priority`),
-    KEY `idx_warrant_type` (`warrant_type`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    UNIQUE KEY `warrant_id` (`warrant_id`)
+);
 
--- Custody table (enhanced)
+CREATE TABLE IF NOT EXISTS `zmdt_fines` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `fine_id` VARCHAR(50) NOT NULL,
+    `citizenid` VARCHAR(50) NOT NULL, -- QBCore foreign key
+    `charges` TEXT NOT NULL,
+    `total_amount` INT(11) NOT NULL,
+    `issued_by` VARCHAR(50) NOT NULL, -- QBCore citizenid
+    `issued_by_name` VARCHAR(100) NOT NULL,
+    `status` ENUM('unpaid','paid','overdue') DEFAULT 'unpaid',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `fine_id` (`fine_id`)
+);
+
 CREATE TABLE IF NOT EXISTS `zmdt_custody` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
-    `custody_id` VARCHAR(50) NOT NULL,
-    `citizenid` VARCHAR(50) NOT NULL,
+    `citizenid` VARCHAR(50) NOT NULL, -- QBCore foreign key
     `charges` TEXT NOT NULL,
-    `arresting_officer` VARCHAR(50) NOT NULL,
-    `arresting_officer_name` VARCHAR(100) NOT NULL,
-    `booking_officer` VARCHAR(50) DEFAULT NULL,
-    `booking_officer_name` VARCHAR(100) DEFAULT NULL,
-    `arrest_date` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    `booking_date` DATETIME DEFAULT NULL,
-    `release_date` DATETIME DEFAULT NULL,
-    `custody_time` INT(11) DEFAULT 0,
-    `actual_time_served` INT(11) DEFAULT 0,
-    `cell_number` INT(11) DEFAULT NULL,
-    `cell_location` VARCHAR(255) DEFAULT NULL,
-    `bail_amount` DECIMAL(10,2) DEFAULT 0.00,
-    `bond_amount` DECIMAL(10,2) DEFAULT 0.00,
-    `bail_paid` DECIMAL(10,2) DEFAULT 0.00,
-    `bail_status` ENUM('none', 'pending', 'paid', 'denied') DEFAULT 'none',
-    `court_date` DATETIME DEFAULT NULL,
-    `court_location` VARCHAR(255) DEFAULT NULL,
-    `judge` VARCHAR(100) DEFAULT NULL,
-    `prosecutor` VARCHAR(100) DEFAULT NULL,
-    `defense_attorney` VARCHAR(100) DEFAULT NULL,
-    `plea` VARCHAR(50) DEFAULT NULL,
-    `verdict` VARCHAR(255) DEFAULT NULL,
-    `sentence` TEXT DEFAULT NULL,
-    `parole_eligible` BOOLEAN DEFAULT FALSE,
-    `parole_date` DATETIME DEFAULT NULL,
-    `visitors_allowed` BOOLEAN DEFAULT TRUE,
-    `phone_privileges` BOOLEAN DEFAULT TRUE,
-    `medical_notes` TEXT DEFAULT NULL,
-    `medications` TEXT DEFAULT NULL,
-    `allergies` TEXT DEFAULT NULL,
-    `special_needs` TEXT DEFAULT NULL,
-    `disciplinary_actions` TEXT DEFAULT NULL,
-    `property_confiscated` TEXT DEFAULT NULL,
-    `status` ENUM('booked', 'held', 'court', 'sentenced', 'released', 'transferred') DEFAULT 'booked',
-    `release_type` VARCHAR(50) DEFAULT NULL,
-    `released_by` VARCHAR(50) DEFAULT NULL,
-    `released_by_name` VARCHAR(100) DEFAULT NULL,
-    `release_notes` TEXT DEFAULT NULL,
+    `arresting_officer` VARCHAR(50) NOT NULL, -- QBCore citizenid
+    `officer_name` VARCHAR(100) NOT NULL,
+    `custody_time` INT(11) NOT NULL,
+    `status` ENUM('in_custody','released','bailed') DEFAULT 'in_custody',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `custody_id` (`custody_id`),
-    KEY `idx_citizenid` (`citizenid`),
-    KEY `idx_arresting_officer` (`arresting_officer`),
-    KEY `idx_status` (`status`),
-    KEY `idx_arrest_date` (`arrest_date`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    PRIMARY KEY (`id`)
+);
 
--- Evidence table (for separate evidence system)
-CREATE TABLE IF NOT EXISTS `zmdt_evidence` (
+CREATE TABLE IF NOT EXISTS `zmdt_audit_logs` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
-    `evidence_id` VARCHAR(50) NOT NULL,
-    `case_id` VARCHAR(50) DEFAULT NULL,
-    `incident_id` VARCHAR(50) DEFAULT NULL,
-    `custody_id` VARCHAR(50) DEFAULT NULL,
-    `evidence_type` ENUM('physical', 'digital', 'photo', 'video', 'audio', 'document', 'dna', 'fingerprint', 'drug', 'weapon', 'other') NOT NULL,
-    `category` VARCHAR(100) DEFAULT NULL,
-    `description` TEXT NOT NULL,
-    `location_found` VARCHAR(255) DEFAULT NULL,
-    `coords_found` TEXT DEFAULT NULL,
-    `date_found` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    `found_by` VARCHAR(50) NOT NULL,
-    `found_by_name` VARCHAR(100) NOT NULL,
-    `collected_by` VARCHAR(50) DEFAULT NULL,
-    `collected_by_name` VARCHAR(100) DEFAULT NULL,
-    `collection_date` DATETIME DEFAULT NULL,
-    `storage_location` VARCHAR(255) DEFAULT NULL,
-    `storage_box` VARCHAR(50) DEFAULT NULL,
-    `storage_shelf` VARCHAR(50) DEFAULT NULL,
-    `storage_locker` VARCHAR(50) DEFAULT NULL,
-    `chain_of_custody` TEXT DEFAULT NULL,
-    `photo_urls` TEXT DEFAULT NULL,
-    `video_urls` TEXT DEFAULT NULL,
-    `document_urls` TEXT DEFAULT NULL,
-    `analysis_status` ENUM('pending', 'in_progress', 'completed', 'not_required') DEFAULT 'pending',
-    `analysis_results` TEXT DEFAULT NULL,
-    `analyzed_by` VARCHAR(50) DEFAULT NULL,
-    `analyzed_by_name` VARCHAR(100) DEFAULT NULL,
-    `analysis_date` DATETIME DEFAULT NULL,
-    `dna_profile` TEXT DEFAULT NULL,
-    `fingerprint_data` TEXT DEFAULT NULL,
-    `drug_test_results` TEXT DEFAULT NULL,
-    `ballistics_data` TEXT DEFAULT NULL,
-    `disposition` ENUM('stored', 'returned', 'destroyed', 'transferred', 'court') DEFAULT 'stored',
-    `disposition_date` DATETIME DEFAULT NULL,
-    `disposition_by` VARCHAR(50) DEFAULT NULL,
-    `disposition_by_name` VARCHAR(100) DEFAULT NULL,
-    `disposition_reason` TEXT DEFAULT NULL,
-    `court_order` VARCHAR(255) DEFAULT NULL,
-    `access_level` INT(11) DEFAULT 1,
-    `min_rank_access` INT(11) DEFAULT 0,
-    `security_classification` ENUM('unclassified', 'confidential', 'secret', 'top_secret') DEFAULT 'unclassified',
-    `retention_date` DATETIME DEFAULT NULL,
-    `notes` TEXT DEFAULT NULL,
+    `action` VARCHAR(100) NOT NULL,
+    `user_id` VARCHAR(50) NOT NULL, -- QBCore citizenid
+    `user_name` VARCHAR(100) NOT NULL,
+    `details` TEXT DEFAULT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `evidence_id` (`evidence_id`),
-    KEY `idx_case_id` (`case_id`),
-    KEY `idx_incident_id` (`incident_id`),
-    KEY `idx_evidence_type` (`evidence_type`),
-    KEY `idx_storage_location` (`storage_location`),
-    KEY `idx_analysis_status` (`analysis_status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    PRIMARY KEY (`id`)
+);
 
--- Dispatch calls table (enhanced)
 CREATE TABLE IF NOT EXISTS `zmdt_dispatch_calls` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `call_id` VARCHAR(50) NOT NULL,
     `title` VARCHAR(255) NOT NULL,
     `description` TEXT NOT NULL,
     `location` VARCHAR(255) NOT NULL,
-    `coords` TEXT DEFAULT NULL,
-    `postal` VARCHAR(20) DEFAULT NULL,
-    `caller` VARCHAR(100) DEFAULT NULL,
-    `caller_phone` VARCHAR(20) DEFAULT NULL,
-    `priority` ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium',
-    `type` ENUM('police', 'medical', 'fire', 'traffic', 'other') DEFAULT 'police',
-    `category` VARCHAR(50) DEFAULT NULL,
-    `status` ENUM('pending', 'assigned', 'en_route', 'on_scene', 'resolved', 'closed', 'cancelled') DEFAULT 'pending',
-    `assigned_units` TEXT DEFAULT NULL,
-    `backup_requested` BOOLEAN DEFAULT FALSE,
-    `backup_units` TEXT DEFAULT NULL,
-    `eta` TIME DEFAULT NULL,
-    `time_on_scene` INT(11) DEFAULT 0,
-    `response_time` INT(11) DEFAULT 0,
-    `resolution_time` INT(11) DEFAULT 0,
-    `related_incidents` TEXT DEFAULT NULL,
-    `related_warrants` TEXT DEFAULT NULL,
-    `medical_priority` ENUM('none', 'low', 'medium', 'high', 'critical') DEFAULT 'none',
-    `fire_priority` ENUM('none', 'low', 'medium', 'high', 'critical') DEFAULT 'none',
-    `hazmat` BOOLEAN DEFAULT FALSE,
-    `hostage_situation` BOOLEAN DEFAULT FALSE,
-    `active_shooter` BOOLEAN DEFAULT FALSE,
-    `terrorism_threat` BOOLEAN DEFAULT FALSE,
-    `created_by` VARCHAR(50) DEFAULT NULL,
-    `created_by_name` VARCHAR(100) DEFAULT NULL,
-    `assigned_by` VARCHAR(50) DEFAULT NULL,
-    `assigned_by_name` VARCHAR(100) DEFAULT NULL,
-    `resolved_by` VARCHAR(50) DEFAULT NULL,
-    `resolved_by_name` VARCHAR(100) DEFAULT NULL,
-    `closed_by` VARCHAR(50) DEFAULT NULL,
-    `closed_by_name` VARCHAR(100) DEFAULT NULL,
-    `notes` TEXT DEFAULT NULL,
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    `assigned_at` DATETIME DEFAULT NULL,
-    `en_route_at` DATETIME DEFAULT NULL,
-    `on_scene_at` DATETIME DEFAULT NULL,
-    `resolved_at` DATETIME DEFAULT NULL,
-    `closed_at` DATETIME DEFAULT NULL,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `call_id` (`call_id`),
-    KEY `idx_status` (`status`),
-    KEY `idx_priority` (`priority`),
-    KEY `idx_type` (`type`),
-    KEY `idx_created_at` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Audit logs table (enhanced)
-CREATE TABLE IF NOT EXISTS `zmdt_audit_logs` (
-    `id` INT(11) NOT NULL AUTO_INCREMENT,
-    `action` VARCHAR(100) NOT NULL,
-    `user_id` VARCHAR(50) NOT NULL,
-    `user_name` VARCHAR(100) NOT NULL,
-    `user_job` VARCHAR(50) DEFAULT NULL,
-    `user_grade` INT(11) DEFAULT NULL,
-    `target_id` VARCHAR(50) DEFAULT NULL,
-    `target_name` VARCHAR(100) DEFAULT NULL,
-    `details` TEXT DEFAULT NULL,
-    `ip_address` VARCHAR(45) DEFAULT NULL,
-    `user_agent` TEXT DEFAULT NULL,
-    `session_id` VARCHAR(255) DEFAULT NULL,
-    `action_category` VARCHAR(50) DEFAULT NULL,
-    `severity` ENUM('info', 'warning', 'error', 'critical') DEFAULT 'info',
-    `success` BOOLEAN DEFAULT TRUE,
-    `error_message` TEXT DEFAULT NULL,
-    `execution_time` INT(11) DEFAULT 0,
-    `server_id` INT(11) DEFAULT NULL,
+    `caller` VARCHAR(100) DEFAULT 'Anonymous',
+    `priority` ENUM('low','medium','high','critical') DEFAULT 'medium',
+    `type` ENUM('police','medical','fire') DEFAULT 'police',
+    `status` ENUM('pending','assigned','en_route','on_scene','closed') DEFAULT 'pending',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    KEY `idx_user_id` (`user_id`),
-    KEY `idx_action` (`action`),
-    KEY `idx_created_at` (`created_at`),
-    KEY `idx_severity` (`severity`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    UNIQUE KEY `call_id` (`call_id`)
+);
 
--- Medical records table
 CREATE TABLE IF NOT EXISTS `zmdt_medical_records` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `record_id` VARCHAR(50) NOT NULL,
-    `citizenid` VARCHAR(50) NOT NULL,
-    `incident_id` VARCHAR(50) DEFAULT NULL,
-    `treatment_type` VARCHAR(100) NOT NULL,
-    `treatment_description` TEXT NOT NULL,
-    `diagnosis` TEXT DEFAULT NULL,
-    `symptoms` TEXT DEFAULT NULL,
-    `injuries` TEXT DEFAULT NULL,
-    `allergies` TEXT DEFAULT NULL,
-    `medications` TEXT DEFAULT NULL,
-    `vital_signs` TEXT DEFAULT NULL,
-    `treatment_provided` TEXT DEFAULT NULL,
-    `medications_administered` TEXT DEFAULT NULL,
-    `procedures_performed` TEXT DEFAULT NULL,
-    `treatment_outcome` VARCHAR(100) DEFAULT NULL,
-    `disposition` VARCHAR(100) DEFAULT NULL,
-    `follow_up_required` BOOLEAN DEFAULT FALSE,
-    `follow_up_date` DATETIME DEFAULT NULL,
-    `transported_to` VARCHAR(255) DEFAULT NULL,
-    `transport_method` VARCHAR(50) DEFAULT NULL,
-    `treating_medic` VARCHAR(50) NOT NULL,
-    `treating_medic_name` VARCHAR(100) NOT NULL,
-    `witnesses` TEXT DEFAULT NULL,
-    `insurance_info` TEXT DEFAULT NULL,
-    `medical_flags` TEXT DEFAULT NULL,
-    `photos` TEXT DEFAULT NULL,
-    `documents` TEXT DEFAULT NULL,
+    `citizenid` VARCHAR(50) NOT NULL, -- QBCore foreign key
+    `doctor_id` VARCHAR(50) NOT NULL, -- QBCore citizenid
+    `doctor_name` VARCHAR(100) NOT NULL,
+    `diagnosis` TEXT NOT NULL,
+    `treatment` TEXT NOT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `record_id` (`record_id`),
-    KEY `idx_citizenid` (`citizenid`),
-    KEY `idx_incident_id` (`incident_id`),
-    KEY `idx_treating_medic` (`treating_medic`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    UNIQUE KEY `record_id` (`record_id`)
+);
 
--- Department accounts table
 CREATE TABLE IF NOT EXISTS `zmdt_department_accounts` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
-    `account_id` VARCHAR(50) NOT NULL,
     `department` VARCHAR(50) NOT NULL,
-    `account_type` VARCHAR(50) NOT NULL,
-    `balance` DECIMAL(15,2) DEFAULT 0.00,
-    `total_received` DECIMAL(15,2) DEFAULT 0.00,
-    `total_spent` DECIMAL(15,2) DEFAULT 0.00,
-    `last_transaction` DATETIME DEFAULT NULL,
-    `account_status` ENUM('active', 'inactive', 'frozen') DEFAULT 'active',
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `balance` INT(11) DEFAULT 0,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `account_id` (`account_id`),
-    KEY `idx_department` (`department`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    UNIQUE KEY `department` (`department`)
+);
 
--- Financial transactions table
-CREATE TABLE IF NOT EXISTS `zmdt_transactions` (
+CREATE TABLE IF NOT EXISTS `zmdt_department_transactions` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
-    `transaction_id` VARCHAR(50) NOT NULL,
-    `account_id` VARCHAR(50) NOT NULL,
-    `transaction_type` ENUM('fine_payment', 'government_tax', 'salary', 'equipment', 'other') NOT NULL,
-    `amount` DECIMAL(10,2) NOT NULL,
-    `balance_before` DECIMAL(15,2) NOT NULL,
-    `balance_after` DECIMAL(15,2) NOT NULL,
-    `reference_id` VARCHAR(50) DEFAULT NULL,
-    `reference_type` VARCHAR(50) DEFAULT NULL,
-    `description` TEXT DEFAULT NULL,
-    `payer_id` VARCHAR(50) DEFAULT NULL,
-    `payer_name` VARCHAR(100) DEFAULT NULL,
-    `payee_id` VARCHAR(50) DEFAULT NULL,
-    `payee_name` VARCHAR(100) DEFAULT NULL,
-    `payment_method` VARCHAR(50) DEFAULT NULL,
-    `transaction_fee` DECIMAL(10,2) DEFAULT 0.00,
-    `tax_amount` DECIMAL(10,2) DEFAULT 0.00,
-    `government_share` DECIMAL(10,2) DEFAULT 0.00,
-    `department_share` DECIMAL(10,2) DEFAULT 0.00,
+    `department` VARCHAR(50) NOT NULL,
+    `amount` INT(11) NOT NULL,
+    `type` ENUM('deposit','withdrawal') NOT NULL,
+    `description` TEXT NOT NULL,
+    `created_by` VARCHAR(50) NOT NULL, -- QBCore citizenid
+    `created_by_name` VARCHAR(100) NOT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `transaction_id` (`transaction_id`),
-    KEY `idx_account_id` (`account_id`),
-    KEY `idx_transaction_type` (`transaction_type`),
-    KEY `idx_created_at` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Job ranks and permissions table
-CREATE TABLE IF NOT EXISTS `zmdt_job_ranks` (
-    `id` INT(11) NOT NULL AUTO_INCREMENT,
-    `job_name` VARCHAR(50) NOT NULL,
-    `grade_level` INT(11) NOT NULL,
-    `grade_name` VARCHAR(100) NOT NULL,
-    `label` VARCHAR(100) NOT NULL,
-    `salary` INT(11) DEFAULT 0,
-    `permissions` TEXT DEFAULT NULL,
-    `mdt_permissions` TEXT DEFAULT NULL,
-    `boss_actions` BOOLEAN DEFAULT FALSE,
-    `can_promote` BOOLEAN DEFAULT FALSE,
-    `can_demote` BOOLEAN DEFAULT FALSE,
-    `can_hire` BOOLEAN DEFAULT FALSE,
-    `can_fire` BOOLEAN DEFAULT FALSE,
-    `can_set_salary` BOOLEAN DEFAULT FALSE,
-    `can_access_vault` BOOLEAN DEFAULT FALSE,
-    `can_seize_evidence` BOOLEAN DEFAULT FALSE,
-    `can_access_armory` BOOLEAN DEFAULT FALSE,
-    `can_manage_fleet` BOOLEAN DEFAULT FALSE,
-    `is_high_command` BOOLEAN DEFAULT FALSE,
-    `department` VARCHAR(50) DEFAULT NULL,
-    `badge_prefix` VARCHAR(20) DEFAULT NULL,
-    `badge_color` VARCHAR(20) DEFAULT NULL,
-    `insignia_url` VARCHAR(255) DEFAULT NULL,
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `job_grade` (`job_name`, `grade_level`),
-    KEY `idx_job_name` (`job_name`),
-    KEY `idx_department` (`department`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Evidence chain of custody table
-CREATE TABLE IF NOT EXISTS `zmdt_evidence_custody` (
-    `id` INT(11) NOT NULL AUTO_INCREMENT,
-    `evidence_id` VARCHAR(50) NOT NULL,
-    `custody_id` VARCHAR(50) NOT NULL,
-    `action` VARCHAR(100) NOT NULL,
-    `performed_by` VARCHAR(50) NOT NULL,
-    `performed_by_name` VARCHAR(100) NOT NULL,
-    `performed_by_rank` VARCHAR(100) DEFAULT NULL,
-    `action_date` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    `location_from` VARCHAR(255) DEFAULT NULL,
-    `location_to` VARCHAR(255) DEFAULT NULL,
-    `condition` VARCHAR(100) DEFAULT NULL,
-    `seal_number` VARCHAR(50) DEFAULT NULL,
-    `witness_1` VARCHAR(100) DEFAULT NULL,
-    `witness_2` VARCHAR(100) DEFAULT NULL,
-    `reason` TEXT DEFAULT NULL,
-    `notes` TEXT DEFAULT NULL,
-    `signature_hash` VARCHAR(255) DEFAULT NULL,
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    KEY `idx_evidence_id` (`evidence_id`),
-    KEY `idx_custody_id` (`custody_id`),
-    KEY `idx_performed_by` (`performed_by`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_zmdt_citizens_search ON zmdt_citizens(firstname, lastname, citizenid);
-CREATE INDEX IF NOT EXISTS idx_zmdt_vehicles_plate ON zmdt_vehicles(plate);
-CREATE INDEX IF NOT EXISTS idx_zmdt_incidents_date ON zmdt_incidents(created_at);
-CREATE INDEX IF NOT EXISTS idx_zmdt_fines_status ON zmdt_fines(status, due_date);
-CREATE INDEX IF NOT EXISTS idx_zmdt_warrants_active ON zmdt_warrants(status, priority);
-CREATE INDEX IF NOT EXISTS idx_zmdt_dispatch_active ON zmdt_dispatch_calls(status, priority, created_at);
+    PRIMARY KEY (`id`)
+);
 
 -- Insert default department accounts
-INSERT INTO zmdt_department_accounts (account_id, department, account_type, balance) VALUES
-('GOVERNMENT_ACCOUNT', 'government', 'general', 1000000.00),
-('POLICE_ACCOUNT', 'police', 'general', 500000.00),
-('SHERIFF_ACCOUNT', 'sheriff', 'general', 300000.00),
-('AMBULANCE_ACCOUNT', 'ambulance', 'general', 200000.00);
+INSERT IGNORE INTO `zmdt_department_accounts` (`department`, `balance`) VALUES
+('police', 0),
+('sheriff', 0),
+('ambulance', 0);
 
--- Insert sample job ranks (will be populated from qb-core jobs.lua)
-INSERT INTO zmdt_job_ranks (job_name, grade_level, grade_name, label, permissions, mdt_permissions) VALUES
+-- Insert sample job ranks (safe to use IGNORE)
+INSERT IGNORE INTO zmdt_job_ranks (job_name, grade_level, grade_name, label, permissions, mdt_permissions) VALUES
 ('police', 0, 'recruit', 'Police Recruit', '["view_people"]', '["view_people", "view_vehicles"]'),
 ('police', 1, 'officer', 'Police Officer', '["view_people", "create_incidents"]', '["view_people", "view_vehicles", "create_incidents", "issue_fines"]'),
 ('police', 2, 'sergeant', 'Sergeant', '["view_people", "create_incidents", "manage_officers"]', '["view_people", "view_vehicles", "create_incidents", "issue_fines", "create_warrants", "view_custody"]'),
 ('police', 3, 'lieutenant', 'Lieutenant', '["view_people", "create_incidents", "manage_officers", "boss_actions"]', '["view_people", "view_vehicles", "create_incidents", "issue_fines", "create_warrants", "view_custody", "manage_custody"]'),
 ('police', 4, 'captain', 'Captain', '["view_people", "create_incidents", "manage_officers", "boss_actions"]', '["view_people", "view_vehicles", "create_incidents", "issue_fines", "create_warrants", "view_custody", "manage_custody", "view_audit_logs"]'),
 ('police', 5, 'chief', 'Chief of Police', '["view_people", "create_incidents", "manage_officers", "boss_actions"]', '["view_people", "view_vehicles", "create_incidents", "issue_fines", "create_warrants", "view_custody", "manage_custody", "view_audit_logs", "manage_department"]');
+
+-- Clean up old audit logs (run manually or via a scheduled task)
+DELETE FROM `zmdt_audit_logs` WHERE `created_at` < DATE_SUB(NOW(), INTERVAL 30 DAY);

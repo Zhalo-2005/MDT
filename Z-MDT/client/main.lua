@@ -17,7 +17,6 @@ local QBCore = exports['qb-core']:GetCoreObject()
        PlayerData.job = JobInfo
    end)
    
-   RegisterNetEvent('zmdt:client:useTablet', function()
        if not HasMDTAccess() then
            QBCore.Functions.Notify('You don\'t have access to the MDT system', 'error')
            return
@@ -25,6 +24,19 @@ local QBCore = exports['qb-core']:GetCoreObject()
        
        OpenMDT()
    end)
+RegisterNetEvent('zmdt:client:useTablet', function()
+    if not HasMDTAccess() then
+        QBCore.Functions.Notify('You don\'t have access to the MDT system', 'error')
+        return
+    end
+    QBCore.Functions.TriggerCallback('zmdt:server:getMDTData', function(data)
+        SendNUIMessage({
+            action = 'openMDT',
+            data = data
+        })
+        OpenMDT()
+    end)
+end)
 
 -- Listen for dashboard update events from server
 RegisterNetEvent('zmdt:client:updateDashboard', function(data)

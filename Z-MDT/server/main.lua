@@ -47,26 +47,29 @@ end
 
 -- Search Person
 QBCore.Functions.CreateCallback('zmdt:server:searchPerson', function(source, cb, query)
-    local result = MySQL.query.await('SELECT * FROM zmdt_citizens WHERE citizenid = ? OR CONCAT(firstname, " ", lastname) LIKE ?', {
-        query, '%' .. query .. '%'
+    local result = MySQL.query.await('SELECT * FROM zmdt_citizens WHERE citizenid = ?', {
+        query
     })
     
     if result and #result > 0 then
         local person = result[1]
-        
         -- Get additional data
+        local fines = MySQL.query.await('SELECT * FROM zmdt_fines WHERE citizenid = ?', {person.citizenid})
         local warrants = MySQL.query.await('SELECT * FROM zmdt_warrants WHERE citizenid = ? AND status = "active"', {person.citizenid})
         local incidents = MySQL.query.await('SELECT * FROM zmdt_incidents WHERE involved_citizens LIKE ? ORDER BY created_at DESC LIMIT 10', {'%' .. person.citizenid .. '%'})
-        
         person.fines = fines
         person.warrants = warrants
         person.incidents = incidents
-        
         cb({success = true, data = person})
     else
-        -- Try to get from players table
+        -- Try to get from QBCore base table
         local playerResult = MySQL.query.await('SELECT * FROM players WHERE citizenid = ?', {query})
-        -- ...existing code...
+        if playerResult and #playerResult > 0 then
+            local playerData = json.decode(playerResult[1].charinfo)
+            cb({success = true, data = playerData})
+        else
+            cb({success = false, data = {}})
+        end
 
         -- After creating a fine, incident, or warrant, update dashboard
         -- Example: After fine creation
