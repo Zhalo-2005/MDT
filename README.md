@@ -216,22 +216,4 @@ This resource is provided for educational and roleplay purposes. Use at your own
 - 📊 **Advanced Analytics** - Machine learning insights
 
 ---
-
-**Made with ❤️ for the FiveM Community**
-
-⭐ **Star this repository if you find it useful!** ⭐
-
-## 📊 Statistics
-
-- **15+ Database Tables** - Comprehensive data management
-- **50+ Features** - Complete law enforcement toolkit
-- **Real-time Updates** - Live data synchronization
-- **Multi-department Support** - Police, Sheriff, EMS, FIB
-- **Discord Integration** - Automated notifications
-- **Performance Optimized** - Minimal server impact
-- **Security Focused** - Audit trails and permissions
-- **Community Driven** - Regular updates and improvements
-
----
-
 **Transform your law enforcement roleplay with the most advanced MDT system available!** 🚔✨
