@@ -1,9 +1,9 @@
 fx_version 'cerulean'
 game 'gta5'
 
-author 'Zhalo-2005'
+author 'Z-Development'
 description 'Z-MDT - UK-Based Police Mobile Data Terminal'
-version '1.0.0'
+version '1.3.0'
 
 lua54 'yes'
 
