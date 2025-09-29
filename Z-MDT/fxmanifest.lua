@@ -3,7 +3,7 @@ game 'gta5'
 
 author 'Z-Development'
 description 'Z-MDT - UK-Based Police Mobile Data Terminal'
-version '1.3.4'
+version '1.3.1'
 
 lua54 'yes'
 
