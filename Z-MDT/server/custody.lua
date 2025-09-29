@@ -1,3 +1,4 @@
+local QBCore = exports['qb-core']:GetCoreObject()
 -- Z-MDT Custody System
 
 -- Get custody records

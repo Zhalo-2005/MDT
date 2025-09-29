@@ -1,3 +1,5 @@
+local QBCore = exports['qb-core']:GetCoreObject()
+if not RegisterNUICallback then RegisterNUICallback = function(name, cb) RegisterNetEvent('__cfx_nui:'..name, function(data, cb2) cb(data, cb2) end) end end
 -- NUI Callback: Search Vehicle
 RegisterNUICallback('searchVehicle', function(data, cb)
     local query = data.query

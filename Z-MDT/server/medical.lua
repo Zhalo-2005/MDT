@@ -1,3 +1,4 @@
+local QBCore = exports['qb-core']:GetCoreObject()
 -- Z-MDT Medical Records System
 
 -- Get medical records for a citizen

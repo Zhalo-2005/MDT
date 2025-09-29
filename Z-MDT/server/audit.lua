@@ -1,3 +1,4 @@
+local QBCore = exports['qb-core']:GetCoreObject()
 -- Z-MDT Audit Logging System
 
 -- Log an action to the audit log

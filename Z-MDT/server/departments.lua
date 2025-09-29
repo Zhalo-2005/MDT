@@ -1,3 +1,4 @@
+local QBCore = exports['qb-core']:GetCoreObject()
 -- Z-MDT Department Management System
 
 -- Get department accounts

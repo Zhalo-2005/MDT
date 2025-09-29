@@ -1,3 +1,4 @@
+local QBCore = exports['qb-core']:GetCoreObject()
 -- Z-MDT Tablet Item Definition
 
 -- For ox_inventory
