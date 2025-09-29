@@ -1,9 +1,9 @@
 fx_version 'cerulean'
 game 'gta5'
 
-author 'Zhalo-2005'
+author 'Z-Development'
 description 'Z-MDT - UK-Based Police Mobile Data Terminal'
-version '1.0.0'
+version '1.3.4'
 
 lua54 'yes'
 
@@ -22,8 +22,17 @@ client_scripts {
     'client/medical.lua'
 }
 
+    '@oxmysql/lib/MySQL.lua',
+    'server/main.lua',
+    'server/audit.lua',
+    'server/custody.lua',
+    'server/departments.lua',
+    'server/fines.lua',
+    'server/medical.lua'
+}
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
+    'server/auto_sql.lua',
     'server/main.lua',
     'server/audit.lua',
     'server/custody.lua',

@@ -46,8 +46,12 @@ function setupEventListeners() {
 }
 
 // NUI Message Handler
+    const data = event.data;
 window.addEventListener('message', function(event) {
     const data = event.data;
+    if (data.action === 'updateDashboard') {
+        updateDashboardUI(data.dashboard);
+    }
 
     switch(data.action) {
         case 'openMDT':
@@ -67,6 +71,22 @@ window.addEventListener('message', function(event) {
             break;
     }
 });
+
+function updateDashboardUI(dashboard) {
+    document.getElementById('totalCitizens').textContent = dashboard.totalCitizens;
+    document.getElementById('registeredVehicles').textContent = dashboard.registeredVehicles;
+    document.getElementById('activeIncidents').textContent = dashboard.activeIncidents;
+    document.getElementById('activeWarrants').textContent = dashboard.activeWarrants;
+    // Update recent activity
+    const recentActivity = document.getElementById('recentActivity');
+    recentActivity.innerHTML = '';
+    dashboard.recentActivity.forEach(function(activity) {
+        const item = document.createElement('div');
+        item.className = 'activity-item';
+        item.textContent = `${activity.time} ${activity.description}`;
+        recentActivity.appendChild(item);
+    });
+}
 
 // Main Functions
 function openMDT(data) {

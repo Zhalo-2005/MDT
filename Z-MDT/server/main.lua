@@ -1,5 +1,24 @@
+
 local QBCore = exports['qb-core']:GetCoreObject()
 
+-- Utility: Send dashboard update to all clients
+function UpdateDashboard()
+    local totalCitizens = MySQL.scalar.await('SELECT COUNT(*) FROM zmdt_citizens')
+    local registeredVehicles = MySQL.scalar.await('SELECT COUNT(*) FROM zmdt_vehicles')
+    local activeIncidents = MySQL.scalar.await('SELECT COUNT(*) FROM zmdt_incidents WHERE status = "active"')
+    local activeWarrants = MySQL.scalar.await('SELECT COUNT(*) FROM zmdt_warrants WHERE status = "active"')
+    local recentActivity = MySQL.query.await('SELECT * FROM zmdt_activity ORDER BY created_at DESC LIMIT 5')
+
+    local dashboard = {
+        totalCitizens = totalCitizens,
+        registeredVehicles = registeredVehicles,
+        activeIncidents = activeIncidents,
+        activeWarrants = activeWarrants,
+        recentActivity = recentActivity
+    }
+
+    TriggerClientEvent('zmdt:client:updateDashboard', -1, dashboard)
+end
 -- Get MDT Data
 QBCore.Functions.CreateCallback('zmdt:server:getMDTData', function(source, cb)
     local Player = QBCore.Functions.GetPlayer(source)
@@ -36,7 +55,6 @@ QBCore.Functions.CreateCallback('zmdt:server:searchPerson', function(source, cb,
         local person = result[1]
         
         -- Get additional data
-        local fines = MySQL.query.await('SELECT * FROM zmdt_fines WHERE citizenid = ? ORDER BY created_at DESC', {person.citizenid})
         local warrants = MySQL.query.await('SELECT * FROM zmdt_warrants WHERE citizenid = ? AND status = "active"', {person.citizenid})
         local incidents = MySQL.query.await('SELECT * FROM zmdt_incidents WHERE involved_citizens LIKE ? ORDER BY created_at DESC LIMIT 10', {'%' .. person.citizenid .. '%'})
         
@@ -48,6 +66,26 @@ QBCore.Functions.CreateCallback('zmdt:server:searchPerson', function(source, cb,
     else
         -- Try to get from players table
         local playerResult = MySQL.query.await('SELECT * FROM players WHERE citizenid = ?', {query})
+        -- ...existing code...
+
+        -- After creating a fine, incident, or warrant, update dashboard
+        -- Example: After fine creation
+        RegisterNetEvent('zmdt:server:addFine', function(data)
+            -- ...existing fine creation code...
+            UpdateDashboard()
+        end)
+
+        -- Example: After incident creation
+        RegisterNetEvent('zmdt:server:addIncident', function(data)
+            -- ...existing incident creation code...
+            UpdateDashboard()
+        end)
+
+        -- Example: After warrant creation
+        RegisterNetEvent('zmdt:server:addWarrant', function(data)
+            -- ...existing warrant creation code...
+            UpdateDashboard()
+        end)
         if playerResult and #playerResult > 0 then
             local playerData = json.decode(playerResult[1].charinfo)
             
