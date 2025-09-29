@@ -1,3 +1,80 @@
+-- NUI Callback: Search Vehicle
+RegisterNUICallback('searchVehicle', function(data, cb)
+    local query = data.query
+    exports.oxmysql:execute('SELECT * FROM player_vehicles WHERE plate = ?', { query }, function(result)
+        if result and result[1] then
+            local vehicle = result[1]
+            -- Get owner name
+            exports.oxmysql:execute('SELECT firstname, lastname FROM players WHERE citizenid = ?', { vehicle.citizenid }, function(owner)
+                vehicle.owner = owner[1] and (owner[1].firstname .. ' ' .. owner[1].lastname) or 'Unknown'
+                cb({ success = true, data = vehicle })
+            end)
+        else
+            cb({ success = false, message = 'Vehicle not found' })
+        end
+    end)
+end)
+-- NUI Callback: Dashboard Stats
+RegisterNUICallback('getDashboardStats', function(data, cb)
+    local stats = {
+        citizens = 0,
+        vehicles = 0,
+        incidents = 0,
+        warrants = 0,
+        activity = {}
+    }
+    exports.oxmysql:execute('SELECT COUNT(*) as count FROM players', {}, function(result)
+        stats.citizens = result[1].count or 0
+        exports.oxmysql:execute('SELECT COUNT(*) as count FROM player_vehicles', {}, function(result2)
+            stats.vehicles = result2[1].count or 0
+            exports.oxmysql:execute('SELECT COUNT(*) as count FROM mdt_incidents WHERE active = 1', {}, function(result3)
+                stats.incidents = result3[1].count or 0
+                exports.oxmysql:execute('SELECT COUNT(*) as count FROM mdt_warrants WHERE active = 1', {}, function(result4)
+                    stats.warrants = result4[1].count or 0
+                    exports.oxmysql:execute('SELECT * FROM mdt_activity ORDER BY time DESC LIMIT 5', {}, function(activity)
+                        for _, v in ipairs(activity) do
+                            table.insert(stats.activity, { time = v.time, text = v.text })
+                        end
+                        cb(stats)
+                    end)
+                end)
+            end)
+        end)
+    end)
+end)
+
+-- NUI Callback: Create Incident
+RegisterNUICallback('createIncident', function(data, cb)
+    local xPlayer = QBCore.Functions.GetPlayer(source)
+    if not xPlayer then cb({ success = false, message = 'Player not found' }) return end
+    exports.oxmysql:execute('INSERT INTO mdt_incidents (title, description, location, priority, created_by, active) VALUES (?, ?, ?, ?, ?, 1)', {
+        data.title, data.description, data.location, data.priority, xPlayer.PlayerData.citizenid
+    }, function(result)
+        cb({ success = true, message = 'Incident created successfully' })
+    end)
+end)
+
+-- NUI Callback: Search Person
+RegisterNUICallback('searchPerson', function(data, cb)
+    local query = data.query
+    exports.oxmysql:execute('SELECT * FROM players WHERE citizenid = ? OR CONCAT(firstname, " ", lastname) LIKE ?', {
+        query, '%'..query..'%'
+    }, function(result)
+        if result and result[1] then
+            local person = result[1]
+            -- Get fines and warrants
+            exports.oxmysql:execute('SELECT * FROM mdt_fines WHERE citizenid = ? ORDER BY date DESC LIMIT 3', { person.citizenid }, function(fines)
+                exports.oxmysql:execute('SELECT * FROM mdt_warrants WHERE citizenid = ? AND active = 1', { person.citizenid }, function(warrants)
+                    person.fines = fines
+                    person.warrants = warrants
+                    cb({ success = true, data = person })
+                end)
+            end)
+        else
+            cb({ success = false, message = 'Person not found' })
+        end
+    end)
+end)
 local QBCore = exports['qb-core']:GetCoreObject()
 
 -- Get MDT Data

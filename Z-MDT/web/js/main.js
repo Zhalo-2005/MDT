@@ -68,26 +68,6 @@ window.addEventListener('message', function(event) {
     }
 });
 
-// Main Functions
-function openMDT(data) {
-    mdtData = data;
-    userRole = data.player.role || 'PD'; // Default to PD if not set
-    document.getElementById('mdt-container').classList.remove('hidden');
-
-    // Update header info
-    document.getElementById('officerName').textContent = data.player.name;
-    document.getElementById('officerBadge').textContent = `Badge #${data.player.badge}`;
-
-    // Role-based tab visibility
-    setTabVisibilityByRole(userRole);
-
-    // Load dashboard data
-    loadDashboard();
-
-    // Switch to dashboard
-    switchTab('dashboard');
-}
-
 function setTabVisibilityByRole(role) {
     // Example: Only PD can see Warrants, Fines, Dispatch; NHS sees NHS, Custody
     const tabConfig = {
