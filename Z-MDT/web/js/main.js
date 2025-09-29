@@ -47,7 +47,6 @@ function setupEventListeners() {
 
 // NUI Message Handler
     const data = event.data;
-window.addEventListener('message', function(event) {
     const data = event.data;
     if (data.action === 'updateDashboard') {
         updateDashboardUI(data.dashboard);
@@ -65,6 +64,31 @@ window.addEventListener('message', function(event) {
             break;
         case 'updateDispatchCall':
             updateDispatchCall(data.data.callId, data.data.updateData);
+            break;
+        case 'notification':
+            showNotification(data.message, data.type);
+            break;
+    }
+});
+window.addEventListener('message', function(event) {
+    if (!event || !event.data) return;
+    const data = event.data;
+    if (data.action === 'updateDashboard') {
+        updateDashboardUI(data.dashboard);
+    }
+
+    switch(data.action) {
+        case 'openMDT':
+            if (data.data) openMDT(data.data);
+            break;
+        case 'closeMDT':
+            closeMDT();
+            break;
+        case 'newDispatchCall':
+            if (data.data) addDispatchCall(data.data);
+            break;
+        case 'updateDispatchCall':
+            if (data.data) updateDispatchCall(data.data.callId, data.data.updateData);
             break;
         case 'notification':
             showNotification(data.message, data.type);
