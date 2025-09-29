@@ -1,207 +1,104 @@
--- Jail System Integration for MDT
+-- Z-MDT Jail System (Fixed)
 local QBCore = exports['qb-core']:GetCoreObject()
 
 -- Jail Configuration
-local JailConfig = Config.Jail or {}
-local activeJailings = {}
+local JailConfig = {
+    BaseTimePerCharge = 300, -- 5 minutes per charge
+    GuiltyPleaReduction = 0.25, -- 25% reduction for guilty plea
+    MaxSentence = 7200, -- 2 hours max
+    Cells = {
+        {id = "A1", x = 459.0, y = -994.0, z = 24.0},
+        {id = "A2", x = 459.0, y = -997.0, z = 24.0},
+        {id = "A3", x = 459.0, y = -1000.0, z = 24.0},
+        {id = "A4", x = 459.0, y = -1003.0, z = 24.0},
+        {id = "B1", x = 463.0, y = -994.0, z = 24.0},
+        {id = "B2", x = 463.0, y = -997.0, z = 24.0},
+        {id = "B3", x = 463.0, y = -1000.0, z = 24.0},
+        {id = "B4", x = 463.0, y = -1003.0, z = 24.0}
+    }
+}
+
+-- Helper function to execute queries
+function executeQuery(query, params)
+    local result = MySQL.query.await(query, params)
+    return result
+end
+
+-- Helper function to execute inserts
+function executeInsert(query, params)
+    local result = MySQL.insert.await(query, params)
+    return result
+end
+
+-- Get player data
+function getPlayerData(src)
+    local Player = QBCore.Functions.GetPlayer(src)
+    if not Player then return nil end
+    
+    return {
+        citizenid = Player.PlayerData.citizenid,
+        name = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname,
+        job = Player.PlayerData.job.name:lower(),
+        grade = Player.PlayerData.job.grade.level
+    }
+end
 
 -- Calculate jail time based on charges
-local function calculateJailTime(charges, pleaGuilty)
-    if not charges or #charges == 0 then return 0 end
-    
+function calculateJailTime(charges, pleaGuilty)
     local totalTime = 0
-    local categoryMultipliers = Config.TimeMultipliers or {}
-    local baseTime = JailConfig.BaseTimePerCharge or 300 -- 5 minutes default
+    
+    if not charges or #charges == 0 then
+        return 0
+    end
     
     for _, charge in ipairs(charges) do
-        local chargeCode = charge.code or charge.id or 'UNKNOWN'
-        local multiplier = 1.0
-        
-        -- Determine category and multiplier
-        for category, codes in pairs(Config.ChargeCategories or {}) do
-            for _, code in ipairs(codes) do
-                if code == chargeCode then
-                    multiplier = categoryMultipliers[category] or 1.0
-                    break
-                end
-            end
-        end
-        
+        local baseTime = Config.Charges[charge] and Config.Charges[charge].baseTime or JailConfig.BaseTimePerCharge
+        local multiplier = Config.Charges[charge] and Config.Charges[charge].multiplier or 1
         totalTime = totalTime + (baseTime * multiplier)
     end
     
-    -- Apply guilty plea reduction
-    if pleaGuilty and JailConfig.GuiltyPleaReduction then
-        totalTime = totalTime * (1 - JailConfig.GuiltyPleaReduction)
+    -- Apply plea reduction
+    if pleaGuilty then
+        totalTime = math.floor(totalTime * (1 - JailConfig.GuiltyPleaReduction))
     end
     
-    -- Apply maximum sentence cap
-    local maxSentence = JailConfig.MaxSentence or 3600 -- 1 hour default
-    if totalTime > maxSentence then
-        totalTime = maxSentence
-    end
+    -- Ensure max sentence
+    totalTime = math.min(totalTime, JailConfig.MaxSentence)
     
-    return math.floor(totalTime)
+    return totalTime
 end
 
--- Get available jail cell
-local function getAvailableCell()
-    local cells = JailConfig.Cells or {}
-    if #cells == 0 then return nil end
+-- Get available cell
+function getAvailableCell()
+    local occupiedCells = executeQuery('SELECT cell_id FROM zmdt_custody WHERE status = ?', {'active'})
+    local occupiedSet = {}
     
-    -- Check which cells are occupied
-    local occupiedCells = {}
-    local query = 'SELECT cell_number FROM zmdt_custody WHERE status = ?'
-    local results = exports.oxmysql:execute_sync(query, {'in_custody'})
-    
-    if results then
-        for _, result in ipairs(results) do
-            occupiedCells[result.cell_number] = true
-        end
+    for _, cell in ipairs(occupiedCells) do
+        occupiedSet[cell.cell_id] = true
     end
     
-    -- Find first available cell
-    for _, cell in ipairs(cells) do
-        if not occupiedCells[cell.id] then
+    for _, cell in ipairs(JailConfig.Cells) do
+        if not occupiedSet[cell.id] then
             return cell
         end
     end
     
-    return nil -- No available cells
+    return nil
 end
 
--- Jail player function
-local function jailPlayer(citizenid, charges, time, cell, officer)
-    local targetPlayer = QBCore.Functions.GetPlayerByCitizenId(citizenid)
-    if not targetPlayer then
-        return false, "Player not online"
-    end
-    
-    local src = targetPlayer.PlayerData.source
-    
-    -- Set player in jail
-    targetPlayer.Functions.SetMetaData("injail", time)
-    targetPlayer.Functions.SetMetaData("jailitems", targetPlayer.PlayerData.items)
-    targetPlayer.Functions.ClearInventory()
-    
-    -- Teleport to jail
-    local jailLocation = JailConfig.DefaultLocation or vector3(459.5, -994.0, 24.9)
-    if cell and cell.coords then
-        jailLocation = cell.coords
-    end
-    
-    SetEntityCoords(GetPlayerPed(src), jailLocation.x, jailLocation.y, jailLocation.z, false, false, false, true)
-    
-    -- Store jail data
-    activeJailings[citizenid] = {
-        startTime = os.time(),
-        endTime = os.time() + time,
-        charges = charges,
-        cell = cell,
-        officer = officer,
-        originalTime = time
-    }
-    
-    -- Send webhook
-    SendWebhook('jail', {
-        title = 'Player Jailed',
-        citizenid = citizenid,
-        name = targetPlayer.PlayerData.charinfo.firstname .. ' ' .. targetPlayer.PlayerData.charinfo.lastname,
-        time = time,
-        charges = charges,
-        officer = officer.name,
-        cell = cell and cell.label or 'Default'
-    })
-    
-    -- Log action
-    LogAction(officer.source, 'JAIL_SENTENCE', 'Jailed ' .. citizenid .. ' for ' .. time .. ' seconds')
-    
-    -- Notify player
-    TriggerClientEvent('QBCore:Notify', src, 'You have been sentenced to jail for ' .. math.floor(time/60) .. ' minutes', 'error', 10000)
-    
-    return true, "Player jailed successfully"
-end
-
--- Release player from jail
-local function releasePlayer(citizenid, reason, officer)
-    local targetPlayer = QBCore.Functions.GetPlayerByCitizenId(citizenid)
-    if not targetPlayer then
-        return false, "Player not online"
-    end
-    
-    local src = targetPlayer.PlayerData.source
-    
-    -- Clear jail metadata
-    targetPlayer.Functions.SetMetaData("injail", 0)
-    
-    -- Restore inventory if stored
-    local jailItems = targetPlayer.PlayerData.metadata["jailitems"]
-    if jailItems then
-        for _, item in pairs(jailItems) do
-            targetPlayer.Functions.AddItem(item.name, item.amount, false, item.info)
-        end
-        targetPlayer.Functions.SetMetaData("jailitems", {})
-    end
-    
-    -- Remove from active jailings
-    activeJailings[citizenid] = nil
-    
-    -- Send webhook
-    SendWebhook('jail', {
-        title = 'Player Released',
-        citizenid = citizenid,
-        name = targetPlayer.PlayerData.charinfo.firstname .. ' ' .. targetPlayer.PlayerData.charinfo.lastname,
-        reason = reason,
-        officer = officer and officer.name or 'System'
-    })
-    
-    -- Log action
-    if officer then
-        LogAction(officer.source, 'RELEASE_JAIL', 'Released ' .. citizenid .. ' from jail')
-    end
-    
-    -- Notify player
-    TriggerClientEvent('QBCore:Notify', src, 'You have been released from jail', 'success', 5000)
-    
-    return true, "Player released successfully"
-end
-
--- Check if player is in jail
-local function isPlayerInJail(citizenid)
-    local targetPlayer = QBCore.Functions.GetPlayerByCitizenId(citizenid)
-    if not targetPlayer then return false end
-    
-    local injail = targetPlayer.PlayerData.metadata["injail"]
-    return injail and injail > 0
-end
-
--- Get remaining jail time
-local function getRemainingJailTime(citizenid)
-    local jailingData = activeJailings[citizenid]
-    if not jailingData then return 0 end
-    
-    local remaining = jailingData.endTime - os.time()
-    return remaining > 0 and remaining or 0
-end
-
--- NUI Callback: Create Custody and Jail
-RegisterNUICallback('createCustodyAndJail', function(data, cb)
+-- Create custody and jail
+RegisterServerEvent('zmdt:server:createCustodyAndJail')
+AddEventHandler('zmdt:server:createCustodyAndJail', function(data)
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)
     if not Player then 
-        cb({success = false, message = 'Player not found'})
+        TriggerClientEvent('QBCore:Notify', src, 'Player not found', 'error')
         return
     end
     
-    local targetPlayer = QBCore.Functions.GetPlayer(data.targetId)
-    if not targetPlayer then
-        cb({success = false, message = 'Target player not found'})
-        return
-    end
-    
-    -- Validate charges
-    if not data.charges or #data.charges == 0 then
-        cb({success = false, message = 'No charges specified'})
+    -- Validate required fields
+    if not data.citizenid or not data.charges or #data.charges == 0 then
+        TriggerClientEvent('QBCore:Notify', src, 'Missing required fields', 'error')
         return
     end
     
@@ -211,212 +108,170 @@ RegisterNUICallback('createCustodyAndJail', function(data, cb)
     -- Get available cell
     local cell = getAvailableCell()
     if not cell then
-        cb({success = false, message = 'No available jail cells'})
+        TriggerClientEvent('QBCore:Notify', src, 'No available cells', 'error')
         return
     end
     
-    -- Create custody record
-    local custodyId = 'CUST-' .. math.random(100000, 999999)
-    local success = exports.oxmysql:insert_sync(
-        'INSERT INTO zmdt_custody (citizenid, charges, arresting_officer, officer_name, custody_time, bail_amount, cell_number, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        {
-            targetPlayer.PlayerData.citizenid,
-            json.encode(data.charges),
-            Player.PlayerData.citizenid,
-            Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname,
-            jailTime,
-            data.bail_amount or 0,
-            cell.id,
-            'in_custody'
-        }
-    )
-    
-    if not success then
-        cb({success = false, message = 'Failed to create custody record'})
-        return
-    end
-    
-    -- Jail the player
-    local officerData = {
-        source = src,
-        citizenid = Player.PlayerData.citizenid,
-        name = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
-    }
-    
-    local jailed, message = jailPlayer(
-        targetPlayer.PlayerData.citizenid,
-        data.charges,
+    -- Insert custody record
+    local success = executeInsert([[
+        INSERT INTO zmdt_custody (citizenid, officer_id, cell_id, charges, jail_time, start_time, end_time, status, notes)
+        VALUES (?, ?, ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL ? SECOND), ?, ?)
+    ]], {
+        data.citizenid,
+        Player.PlayerData.citizenid,
+        cell.id,
+        json.encode(data.charges),
         jailTime,
-        cell,
-        officerData
-    )
+        jailTime,
+        'active',
+        data.notes or ''
+    })
     
-    if jailed then
-        cb({
-            success = true, 
-            message = 'Player placed in custody and jailed',
-            custody_id = custodyId,
-            jail_time = jailTime,
-            cell = cell.label
-        })
+    if success then
+        -- Jail the player
+        local targetPlayer = QBCore.Functions.GetPlayerByCitizenId(data.citizenid)
+        if targetPlayer then
+            -- Set player in jail
+            TriggerClientEvent('zmdt:client:jailPlayer', targetPlayer.PlayerData.source, {
+                cell = cell,
+                time = jailTime,
+                charges = data.charges
+            })
+            
+            -- Update player state
+            targetPlayer.Functions.SetMetaData('injail', true)
+            targetPlayer.Functions.SetMetaData('jailtime', jailTime)
+        end
+        
+        TriggerClientEvent('QBCore:Notify', src, 'Player jailed successfully', 'success')
+        TriggerClientEvent('zmdt:client:custodyCreated', src, data.citizenid)
     else
-        cb({success = false, message = message})
+        TriggerClientEvent('QBCore:Notify', src, 'Failed to create custody record', 'error')
     end
 end)
 
--- NUI Callback: Release from Custody
-RegisterNUICallback('releaseFromCustody', function(data, cb)
+-- Release from custody
+RegisterServerEvent('zmdt:server:releaseFromCustody')
+AddEventHandler('zmdt:server:releaseFromCustody', function(data)
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)
     if not Player then 
-        cb({success = false, message = 'Player not found'})
+        TriggerClientEvent('QBCore:Notify', src, 'Player not found', 'error')
         return
     end
     
-    local citizenid = data.citizenid
-    if not citizenid then
-        cb({success = false, message = 'No citizen ID provided'})
-        return
-    end
-    
-    -- Check if player is in custody
-    local custody = exports.oxmysql:execute_sync(
-        'SELECT * FROM zmdt_custody WHERE citizenid = ? AND status = ?',
-        {citizenid, 'in_custody'}
-    )
-    
-    if not custody or #custody == 0 then
-        cb({success = false, message = 'Player not in custody'})
+    if not data.citizenid then
+        TriggerClientEvent('QBCore:Notify', src, 'Missing citizen ID', 'error')
         return
     end
     
     -- Update custody record
-    local success = exports.oxmysql:update_sync(
-        'UPDATE zmdt_custody SET status = ?, released_at = NOW() WHERE citizenid = ? AND status = ?',
-        {'released', citizenid, 'in_custody'}
-    )
+    local success = executeQuery([[
+        UPDATE zmdt_custody 
+        SET status = ?, end_time = NOW(), notes = CONCAT(notes, ' - Released by ', ?)
+        WHERE citizenid = ? AND status = ?
+    ]], {
+        'released',
+        Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname,
+        data.citizenid,
+        'active'
+    })
     
     if success then
-        -- Release from jail if applicable
-        local officerData = {
-            source = src,
-            citizenid = Player.PlayerData.citizenid,
-            name = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
-        }
+        -- Release player from jail
+        local targetPlayer = QBCore.Functions.GetPlayerByCitizenId(data.citizenid)
+        if targetPlayer then
+            TriggerClientEvent('zmdt:client:releasePlayer', targetPlayer.PlayerData.source)
+            
+            -- Update player state
+            targetPlayer.Functions.SetMetaData('injail', false)
+            targetPlayer.Functions.SetMetaData('jailtime', 0)
+        end
         
-        local released, message = releasePlayer(citizenid, 'Released from custody', officerData)
-        
-        cb({
-            success = true,
-            message = 'Player released from custody' .. (released and ' and jail' or ''),
-            released_from_jail = released
-        })
+        TriggerClientEvent('QBCore:Notify', src, 'Player released successfully', 'success')
+        TriggerClientEvent('zmdt:client:custodyReleased', src, data.citizenid)
     else
-        cb({success = false, message = 'Failed to update custody record'})
+        TriggerClientEvent('QBCore:Notify', src, 'Failed to release player', 'error')
     end
 end)
 
--- NUI Callback: Get Jail Configuration
-RegisterNUICallback('getJailConfig', function(data, cb)
-    cb({
+-- Get jail configuration
+RegisterServerEvent('zmdt:server:getJailConfig')
+AddEventHandler('zmdt:server:getJailConfig', function()
+    local src = source
+    TriggerClientEvent('zmdt:client:jailConfig', src, {
         success = true,
         config = {
             baseTime = JailConfig.BaseTimePerCharge or 300,
             pleaReduction = (JailConfig.GuiltyPleaReduction or 0.25) * 100,
-            maxSentence = JailConfig.MaxSentence or 3600,
-            cells = JailConfig.Cells or {}
+            maxSentence = JailConfig.MaxSentence or 7200,
+            cells = JailConfig.Cells
         }
     })
 end)
 
--- NUI Callback: Calculate Jail Time
-RegisterNUICallback('calculateJailTime', function(data, cb)
+-- Calculate jail time
+RegisterServerEvent('zmdt:server:calculateJailTime')
+AddEventHandler('zmdt:server:calculateJailTime', function(data)
+    local src = source
+    
     if not data.charges or #data.charges == 0 then
-        cb({success = false, message = 'No charges provided'})
+        TriggerClientEvent('zmdt:client:jailTimeCalculated', src, {success = false, message = 'No charges provided'})
         return
     end
     
-    local time = calculateJailTime(data.charges, data.pleaGuilty)
+    local totalTime = calculateJailTime(data.charges, data.pleaGuilty)
     
-    cb({
+    TriggerClientEvent('zmdt:client:jailTimeCalculated', src, {
         success = true,
-        time = time,
-        displayTime = formatTime(time)
+        time = totalTime,
+        charges = data.charges,
+        pleaGuilty = data.pleaGuilty
     })
 end)
 
--- Format time for display
-function formatTime(seconds)
-    local hours = math.floor(seconds / 3600)
-    local minutes = math.floor((seconds % 3600) / 60)
-    local secs = seconds % 60
+-- Get custody records
+RegisterServerEvent('zmdt:server:getCustodyRecords')
+AddEventHandler('zmdt:server:getCustodyRecords', function()
+    local src = source
     
-    if hours > 0 then
-        return string.format("%dh %dm %ds", hours, minutes, secs)
-    elseif minutes > 0 then
-        return string.format("%dm %ds", minutes, secs)
-    else
-        return string.format("%ds", secs)
-    end
-end
+    local records = executeQuery([[
+        SELECT c.*, p.firstname, p.lastname 
+        FROM zmdt_custody c 
+        LEFT JOIN players p ON c.citizenid = p.citizenid 
+        WHERE c.status = ? 
+        ORDER BY c.start_time DESC
+    ]], {'active'})
+    
+    TriggerClientEvent('zmdt:client:custodyRecords', src, records or {})
+end)
 
--- Check jail times periodically
-CreateThread(function()
-    while true do
-        Wait(60000) -- Check every minute
-        
-        for citizenid, data in pairs(activeJailings) do
-            local remaining = data.endTime - os.time()
-            
-            if remaining <= 0 then
-                -- Time served, release player
-                releasePlayer(citizenid, 'Time served', nil)
-            elseif remaining == 300 then
-                -- 5 minutes remaining warning
-                local targetPlayer = QBCore.Functions.GetPlayerByCitizenId(citizenid)
-                if targetPlayer then
-                    TriggerClientEvent('QBCore:Notify', targetPlayer.PlayerData.source, '5 minutes remaining in jail', 'info', 5000)
-                end
-            end
-        end
+-- Get remaining jail time
+RegisterServerEvent('zmdt:server:getRemainingJailTime')
+AddEventHandler('zmdt:server:getRemainingJailTime', function(citizenid)
+    local src = source
+    
+    local jailingData = executeQuery([[
+        SELECT * FROM zmdt_custody 
+        WHERE citizenid = ? AND status = ? 
+        ORDER BY start_time DESC 
+        LIMIT 1
+    ]], {citizenid, 'active'})
+    
+    if jailingData and #jailingData > 0 then
+        local remaining = jailingData[1].end_time - os.time()
+        TriggerClientEvent('zmdt:client:remainingJailTime', src, {
+            success = true,
+            time = math.max(0, remaining)
+        })
+    else
+        TriggerClientEvent('zmdt:client:remainingJailTime', src, {
+            success = false,
+            message = 'No active jail time'
+        })
     end
 end)
 
--- Command to release from jail
-QBCore.Commands.Add('release', 'Release player from jail', {{name = 'id', help = 'Player ID'}}, true, function(source, args)
-    local Player = QBCore.Functions.GetPlayer(source)
-    if not Player then return end
-    
-    local targetId = tonumber(args[1])
-    if not targetId then
-        TriggerClientEvent('QBCore:Notify', source, 'Invalid player ID', 'error')
-        return
-    end
-    
-    local targetPlayer = QBCore.Functions.GetPlayer(targetId)
-    if not targetPlayer then
-        TriggerClientEvent('QBCore:Notify', source, 'Player not found', 'error')
-        return
-    end
-    
-    local officerData = {
-        source = source,
-        citizenid = Player.PlayerData.citizenid,
-        name = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
-    }
-    
-    local released, message = releasePlayer(targetPlayer.PlayerData.citizenid, 'Administrative release', officerData)
-    
-    if released then
-        TriggerClientEvent('QBCore:Notify', source, 'Player released from jail', 'success')
-    else
-        TriggerClientEvent('QBCore:Notify', source, message, 'error')
-    end
-end, 'admin')
-
 -- Export functions
-exports('jailPlayer', jailPlayer)
-exports('releasePlayer', releasePlayer)
-exports('isPlayerInJail', isPlayerInJail)
-exports('getRemainingJailTime', getRemainingJailTime)
 exports('calculateJailTime', calculateJailTime)
+exports('getAvailableCell', getAvailableCell)

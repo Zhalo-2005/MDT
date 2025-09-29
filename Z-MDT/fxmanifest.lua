@@ -40,7 +40,7 @@ files {
     'web/js/main_improved.js',
     'web/css/style.css',
     'web/assets/*.png',
-    'zmdt_tablet.png.png'
+    'zmdt_tablet.png'
 }
 
 dependencies {

@@ -182,7 +182,7 @@ RegisterNetEvent('zmdt:server:issueFine', function(data)
                     },
                     footer = {
                         text = "Z-MDT System • " .. os.date("%Y-%m-%d %H:%M:%S")
-                    -- Fix: Remove stray bracket or correct block structure
+                    }
                 }
             }
         }
