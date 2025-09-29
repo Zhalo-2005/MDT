@@ -194,11 +194,24 @@ CREATE TABLE IF NOT EXISTS `zmdt_department_transactions` (
 );
 
 -- Insert default department accounts
-INSERT IGNORE INTO `zmdt_department_accounts` (`department`, `balance`) VALUES
+INSERT INTO `zmdt_department_accounts` (`department`, `balance`) VALUES
 ('police', 0),
 ('sheriff', 0),
 ('ambulance', 0);
 
+-- Create procedure to clean up old audit logs
+DELIMITER //
+CREATE PROCEDURE IF NOT EXISTS `zmdt_cleanup_audit_logs`()
+BEGIN
+    DECLARE retention_days INT;
+    SET retention_days = 30; -- Default value, can be overridden by config
+    
+    DELETE FROM `zmdt_audit_logs` WHERE `created_at` < DATE_SUB(NOW(), INTERVAL retention_days DAY);
+END //
+DELIMITER ;
 
--- Clean up old audit logs (run manually or via a scheduled task)
-DELETE FROM `zmdt_audit_logs` WHERE `created_at` < DATE_SUB(NOW(), INTERVAL 30 DAY);
+-- Create event to run cleanup procedure daily
+CREATE EVENT IF NOT EXISTS `zmdt_daily_audit_cleanup`
+ON SCHEDULE EVERY 1 DAY
+DO
+    CALL `zmdt_cleanup_audit_logs`();

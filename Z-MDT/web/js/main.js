@@ -46,11 +46,8 @@ function setupEventListeners() {
 }
 
 // NUI Message Handler
+window.addEventListener('message', function(event) {
     const data = event.data;
-    const data = event.data;
-    if (data.action === 'updateDashboard') {
-        updateDashboardUI(data.dashboard);
-    }
 
     switch(data.action) {
         case 'openMDT':
@@ -70,63 +67,6 @@ function setupEventListeners() {
             break;
     }
 });
-window.addEventListener('message', function(event) {
-    if (!event || !event.data) return;
-    const data = event.data;
-    if (data.action === 'updateDashboard') {
-        updateDashboardUI(data.dashboard);
-    }
-
-    switch(data.action) {
-        case 'openMDT':
-            if (data.data) openMDT(data.data);
-            break;
-        case 'closeMDT':
-            closeMDT();
-            break;
-        case 'newDispatchCall':
-            if (data.data) addDispatchCall(data.data);
-            break;
-        case 'updateDispatchCall':
-            if (data.data) updateDispatchCall(data.data.callId, data.data.updateData);
-            break;
-        case 'notification':
-            showNotification(data.message, data.type);
-            break;
-    }
-});
-
-    document.getElementById('totalCitizens').textContent = dashboard.totalCitizens;
-    document.getElementById('registeredVehicles').textContent = dashboard.registeredVehicles;
-    document.getElementById('activeIncidents').textContent = dashboard.activeIncidents;
-    document.getElementById('activeWarrants').textContent = dashboard.activeWarrants;
-    // Update recent activity
-    const recentActivity = document.getElementById('recentActivity');
-    recentActivity.innerHTML = '';
-    dashboard.recentActivity.forEach(function(activity) {
-        const item = document.createElement('div');
-        item.className = 'activity-item';
-        item.textContent = `${activity.time} ${activity.description}`;
-        recentActivity.appendChild(item);
-    });
-}
-function updateDashboardUI(dashboard) {
-    document.getElementById('totalCitizens').textContent = dashboard.totalCitizens;
-    document.getElementById('registeredVehicles').textContent = dashboard.registeredVehicles;
-    document.getElementById('activeIncidents').textContent = dashboard.activeIncidents;
-    document.getElementById('activeWarrants').textContent = dashboard.activeWarrants;
-    // Update recent activity
-    const recentActivity = document.getElementById('recentActivity');
-    recentActivity.innerHTML = '';
-    if (dashboard.recentActivity && Array.isArray(dashboard.recentActivity)) {
-        dashboard.recentActivity.forEach(function(activity) {
-            const item = document.createElement('div');
-            item.className = 'activity-item';
-            item.textContent = `${activity.time ? activity.time : ''} ${activity.description ? activity.description : ''}`;
-            recentActivity.appendChild(item);
-        });
-    }
-}
 
 // Main Functions
 function openMDT(data) {
@@ -666,33 +606,6 @@ function submitWarrant(citizenid, modalId) {
         console.error('Error:', error);
         showError(modalId, 'Failed to create warrant');
     });
-}
-
-function createIncident() {
-    const title = document.getElementById('incidentTitle').value.trim();
-    const description = document.getElementById('incidentDescription').value.trim();
-    const location = document.getElementById('incidentLocation').value.trim();
-    const priority = document.getElementById('incidentPriority').value;
-    if (!title || !description || !location) {
-        notify('Please fill in all fields', 'error');
-        return;
-    }
-    fetch('https://zmdt/createIncident', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, description, location, priority })
-    })
-    .then(res => res.json())
-    .then(response => {
-        if (response.success) {
-            closeModal('createIncidentModal');
-            notify('Incident created successfully', 'success');
-            loadIncidents();
-        } else {
-            notify('Failed to create incident', 'error');
-        }
-    })
-    .catch(() => notify('Failed to create incident', 'error'));
 }
 
 // Utility Functions

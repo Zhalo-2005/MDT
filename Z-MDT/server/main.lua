@@ -1,24 +1,5 @@
-
 local QBCore = exports['qb-core']:GetCoreObject()
 
--- Utility: Send dashboard update to all clients
-function UpdateDashboard()
-    local totalCitizens = MySQL.scalar.await('SELECT COUNT(*) FROM zmdt_citizens')
-    local registeredVehicles = MySQL.scalar.await('SELECT COUNT(*) FROM zmdt_vehicles')
-    local activeIncidents = MySQL.scalar.await('SELECT COUNT(*) FROM zmdt_incidents WHERE status = "active"')
-    local activeWarrants = MySQL.scalar.await('SELECT COUNT(*) FROM zmdt_warrants WHERE status = "active"')
-    local recentActivity = MySQL.query.await('SELECT * FROM zmdt_activity ORDER BY created_at DESC LIMIT 5')
-
-    local dashboard = {
-        totalCitizens = totalCitizens,
-        registeredVehicles = registeredVehicles,
-        activeIncidents = activeIncidents,
-        activeWarrants = activeWarrants,
-        recentActivity = recentActivity
-    }
-
-    TriggerClientEvent('zmdt:client:updateDashboard', -1, dashboard)
-end
 -- Get MDT Data
 QBCore.Functions.CreateCallback('zmdt:server:getMDTData', function(source, cb)
     local Player = QBCore.Functions.GetPlayer(source)
@@ -47,57 +28,26 @@ end
 
 -- Search Person
 QBCore.Functions.CreateCallback('zmdt:server:searchPerson', function(source, cb, query)
-    local result = MySQL.query.await('SELECT * FROM zmdt_citizens WHERE citizenid = ?', {
-        query
+    local result = MySQL.query.await('SELECT * FROM zmdt_citizens WHERE citizenid = ? OR CONCAT(firstname, " ", lastname) LIKE ?', {
+        query, '%' .. query .. '%'
     })
     
     if result and #result > 0 then
         local person = result[1]
+        
         -- Get additional data
-        local fines = MySQL.query.await('SELECT * FROM zmdt_fines WHERE citizenid = ?', {person.citizenid})
+        local fines = MySQL.query.await('SELECT * FROM zmdt_fines WHERE citizenid = ? ORDER BY created_at DESC', {person.citizenid})
         local warrants = MySQL.query.await('SELECT * FROM zmdt_warrants WHERE citizenid = ? AND status = "active"', {person.citizenid})
         local incidents = MySQL.query.await('SELECT * FROM zmdt_incidents WHERE involved_citizens LIKE ? ORDER BY created_at DESC LIMIT 10', {'%' .. person.citizenid .. '%'})
+        
         person.fines = fines
         person.warrants = warrants
         person.incidents = incidents
+        
         cb({success = true, data = person})
     else
-        -- Try to get from QBCore base table
+        -- Try to get from players table
         local playerResult = MySQL.query.await('SELECT * FROM players WHERE citizenid = ?', {query})
-        if playerResult and #playerResult > 0 then
-            local playerData = json.decode(playerResult[1].charinfo)
-            cb({success = true, data = playerData})
-        else
-            cb({success = false, data = {}})
-        end
-
-        -- After creating a fine, incident, or warrant, update dashboard
-        -- Example: After fine creation
-        RegisterNetEvent('zmdt:server:addFine', function(data)
-            -- ...existing fine creation code...
-            UpdateDashboard()
-        end)
-
-        -- Example: After incident creation
-
-        RegisterNUICallback('createIncident', function(data, cb)
-            local src = source
-            local Player = QBCore.Functions.GetPlayer(src)
-            if not Player then cb({success = false}) return end
-
-            -- Insert incident into database
-            MySQL.query('INSERT INTO zmdt_incidents (title, description, location, priority, created_by, created_at, status) VALUES (?, ?, ?, ?, ?, NOW(), "active")', {
-                data.title, data.description, data.location, data.priority, Player.PlayerData.citizenid
-            })
-            UpdateDashboard()
-            cb({success = true})
-        end)
-
-        -- Example: After warrant creation
-        RegisterNetEvent('zmdt:server:addWarrant', function(data)
-            -- ...existing warrant creation code...
-            UpdateDashboard()
-        end)
         if playerResult and #playerResult > 0 then
             local playerData = json.decode(playerResult[1].charinfo)
             
@@ -466,22 +416,15 @@ RegisterNetEvent('zmdt:server:payFine', function(fineId)
     local fineData = fine[1]
     local amount = fineData.total_amount
     
-    -- Check and process payment using configured banking system
-    if Config.Integrations.Banking == 'codm-banking' then
-        local bankBalance = exports['codem-banking']:GetAccountBalance(Player.PlayerData.citizenid)
-        if bankBalance < amount then
-            TriggerClientEvent('QBCore:Notify', src, 'Insufficient funds', 'error')
-            return
-        end
-        exports['codem-banking']:RemoveAccountMoney(Player.PlayerData.citizenid, amount)
-    else
-        local bankBalance = Player.PlayerData.money['bank']
-        if bankBalance < amount then
-            TriggerClientEvent('QBCore:Notify', src, 'Insufficient funds', 'error')
-            return
-        end
-        Player.Functions.RemoveMoney('bank', amount, 'fine-payment')
+    -- Check if player has enough money
+    local bankBalance = Player.PlayerData.money['bank']
+    if bankBalance < amount then
+        TriggerClientEvent('QBCore:Notify', src, 'Insufficient funds', 'error')
+        return
     end
+    
+    -- Process payment
+    Player.Functions.RemoveMoney('bank', amount, 'fine-payment')
     
     -- Update fine status
     MySQL.query('UPDATE zmdt_fines SET status = "paid", paid_at = NOW() WHERE fine_id = ?', {fineId})

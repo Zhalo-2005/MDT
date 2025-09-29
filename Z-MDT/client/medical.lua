@@ -178,11 +178,9 @@ end)
 
 -- Item usage
 if Config.Integrations.Inventory == 'qb-inventory' then
-    if QBCore.Functions.CreateUseableItem then
-        QBCore.Functions.CreateUseableItem('zmdt_medical_tablet', function(source)
-            TriggerEvent('zmdt:client:useMedicalTablet')
-        end)
-    end
+    QBCore.Functions.CreateUseableItem('zmdt_medical_tablet', function(source)
+        TriggerEvent('zmdt:client:useMedicalTablet')
+    end)
 elseif GetResourceState('ox_inventory') ~= 'missing' then
     -- ox_inventory integration
     exports('useMedicalTablet', function(data, slot)

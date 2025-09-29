@@ -1,6 +1,5 @@
 -- Z-MDT Fine Payment System
 
-local QBCore = exports['qb-core']:GetCoreObject()
 local paymentBlips = {}
 local activePaymentLocations = {}
 
