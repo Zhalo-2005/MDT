@@ -22,8 +22,17 @@ client_scripts {
     'client/medical.lua'
 }
 
+    '@oxmysql/lib/MySQL.lua',
+    'server/main.lua',
+    'server/audit.lua',
+    'server/custody.lua',
+    'server/departments.lua',
+    'server/fines.lua',
+    'server/medical.lua'
+}
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
+    'server/auto_sql.lua',
     'server/main.lua',
     'server/audit.lua',
     'server/custody.lua',
