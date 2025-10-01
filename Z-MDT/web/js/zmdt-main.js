@@ -49,222 +49,192 @@ function initializeMDT() {
     fetchDashboardStats();
 }
 
+// Open MDT
+function openMDT(data) {
+    document.getElementById('mdt-container').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    
+    // Update user info
+    if (data.playerData) {
+        document.getElementById('user-name').textContent = data.playerData.name;
+        document.getElementById('user-callsign').textContent = data.playerData.callsign || 'N/A';
+        document.getElementById('user-department').textContent = data.playerData.department;
+    }
+    
+    // Set job-based permissions
+    if (data.job) {
+        setJobPermissions(data.job);
+    }
+    
+    // Load dashboard
+    fetchDashboardStats();
+}
+
+// Close MDT
+function closeMDT() {
+    document.getElementById('mdt-container').style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+// Set job permissions
+function setJobPermissions(job) {
+    const jobElements = document.querySelectorAll('[data-job-required]');
+    jobElements.forEach(element => {
+        const requiredJob = element.dataset.jobRequired;
+        if (requiredJob === job || requiredJob === 'all') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    });
+}
+
 // Setup event listeners
 function setupEventListeners() {
     // Tab switching
-    document.querySelectorAll('.nav-item').forEach(button => {
+    document.querySelectorAll('.tab-button').forEach(button => {
         button.addEventListener('click', function() {
-            const tabName = this.getAttribute('data-tab');
-            switchTab(tabName);
+            switchTab(this.dataset.tab);
         });
     });
-
-    // Theme switching
-    document.querySelectorAll('.theme-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const themeName = this.getAttribute('data-theme');
-            switchTheme(themeName);
-        });
-    });
-
+    
     // Search functionality
-    document.getElementById('personSearch')?.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') searchPerson();
+    document.getElementById('person-search-btn')?.addEventListener('click', searchPerson);
+    document.getElementById('vehicle-search-btn')?.addEventListener('click', searchVehicle);
+    document.getElementById('incident-search-btn')?.addEventListener('click', searchIncident);
+    
+    // Form submissions
+    document.getElementById('fine-form')?.addEventListener('submit', submitFine);
+    document.getElementById('incident-form')?.addEventListener('submit', submitIncident);
+    
+    // Theme switching
+    document.querySelectorAll('.theme-option').forEach(option => {
+        option.addEventListener('click', function() {
+            switchTheme(this.dataset.theme);
+        });
     });
-
-    document.getElementById('vehicleSearch')?.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') searchVehicle();
-    });
-
-    // Keyboard shortcuts
+    
+    // ESC key to close
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeMDT();
+        if (e.key === 'Escape') {
+            fetch(`https://${GetParentResourceName()}/close`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            });
+        }
     });
 }
 
-// Tab management
+// Switch tab
 function switchTab(tabName) {
     // Hide all tabs
     document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    
-    // Remove active class from nav buttons
-    document.querySelectorAll('.nav-item').forEach(btn => {
-        btn.classList.remove('active');
+        tab.style.display = 'none';
     });
     
     // Show selected tab
-    document.getElementById(tabName).classList.add('active');
+    document.getElementById(`${tabName}-tab`).style.display = 'block';
+    
+    // Update active button
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('active');
+    });
     document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
     
-    currentTab = tabName;
-    
-    // Load tab-specific data
-    loadTabData(tabName);
-}
-
-// Load tab-specific data
-function loadTabData(tabName) {
+    // Load tab data
     switch(tabName) {
         case 'dashboard':
             fetchDashboardStats();
             break;
-        case 'incidents':
-            fetchIncidents();
+        case 'search':
+            // Search tab is ready
             break;
-        case 'custody':
-            fetchCustodyRecords();
+        case 'reports':
+            fetchReports();
+            break;
+        case 'fines':
+            fetchFines();
+            break;
+        case 'jail':
+            fetchJailData();
             break;
     }
 }
 
-// Fetch dashboard statistics
+// Fetch dashboard stats
 function fetchDashboardStats() {
-    if (isMDTReady) {
-        fetch(`https://${GetParentResourceName()}/getDashboardStats`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
-        });
-    }
+    fetch(`https://${GetParentResourceName()}/getDashboardStats`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.success) {
+            updateDashboardStats(data.data);
+        }
+    });
 }
 
-// Fetch incidents
-function fetchIncidents() {
-    if (isMDTReady) {
-        fetch(`https://${GetParentResourceName()}/getIncidents`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
-        });
-    }
+// Update dashboard stats
+function updateDashboardStats(stats) {
+    animateValue('total-citizens', 0, stats.totalCitizens || 0, 1000);
+    animateValue('total-vehicles', 0, stats.totalVehicles || 0, 1000);
+    animateValue('active-warrants', 0, stats.activeWarrants || 0, 1000);
+    animateValue('pending-fines', 0, stats.pendingFines || 0, 1000);
 }
 
-// Fetch custody records
-function fetchCustodyRecords() {
-    if (isMDTReady) {
-        fetch(`https://${GetParentResourceName()}/getCustodyRecords`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
-        });
-    }
+// Animate value
+function animateValue(id, start, end, duration) {
+    const element = document.getElementById(id);
+    if (!element) return;
+    
+    const range = end - start;
+    const increment = range / (duration / 16);
+    let current = start;
+    
+    const timer = setInterval(() => {
+        current += increment;
+        if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+            current = end;
+            clearInterval(timer);
+        }
+        element.textContent = Math.floor(current);
+    }, 16);
 }
 
 // Search person
 function searchPerson() {
-    const query = document.getElementById('personSearch').value;
-    if (!query.trim()) return;
+    const query = document.getElementById('person-search-input').value;
+    if (!query) return;
     
-    fetch(`https://${GetParentResourceName()}/searchPerson`, {
+    fetch(`https://${GetParentResourceName()}/searchCitizen`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json'
+        },
         body: JSON.stringify({ query: query })
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.success) {
+            displayPersonResults(data.data);
+        }
     });
 }
 
-// Search vehicle
-function searchVehicle() {
-    const query = document.getElementById('vehicleSearch').value;
-    if (!query.trim()) return;
-    
-    fetch(`https://${GetParentResourceName()}/searchVehicle`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: query })
-    });
-}
-
-// Create incident
-function createIncident() {
-    const title = document.getElementById('incidentTitle').value;
-    const description = document.getElementById('incidentDescription').value;
-    const location = document.getElementById('incidentLocation').value;
-    const priority = document.getElementById('incidentPriority').value;
-    
-    if (!title || !description) {
-        displayNotification('Please fill in all required fields', 'error');
-        return;
-    }
-    
-    fetch(`https://${GetParentResourceName()}/createIncident`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            title: title,
-            description: description,
-            location: location,
-            priority: priority
-        })
-    });
-    
-    hideCreateIncident();
-}
-
-// Create fine
-function createFine() {
-    const citizen = document.getElementById('fineCitizen').value;
-    const amount = document.getElementById('fineAmount').value;
-    const reason = document.getElementById('fineReason').value;
-    const category = document.getElementById('fineCategory').value;
-    
-    if (!citizen || !amount || !reason) {
-        displayNotification('Please fill in all required fields', 'error');
-        return;
-    }
-    
-    fetch(`https://${GetParentResourceName()}/createFine`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            citizenid: citizen,
-            amount: parseInt(amount),
-            reason: reason,
-            category: category
-        })
-    });
-    
-    hideCreateFine();
-}
-
-// Create custody
-function createCustody() {
-    const citizen = document.getElementById('custodyCitizen').value;
-    const charges = document.getElementById('custodyCharges').value;
-    const cell = document.getElementById('custodyCell').value;
-    const pleaGuilty = document.getElementById('custodyPlea').checked;
-    
-    if (!citizen || !charges) {
-        displayNotification('Please fill in all required fields', 'error');
-        return;
-    }
-    
-    const chargesArray = charges.split(',').map(c => c.trim());
-    
-    fetch(`https://${GetParentResourceName()}/createCustodyAndJail`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            citizenid: citizen,
-            charges: chargesArray,
-            cell: cell,
-            pleaGuilty: pleaGuilty
-        })
-    });
-    
-    hideCreateCustody();
-}
-
-// Display functions
+// Display person results
 function displayPersonResults(results) {
-    const container = document.getElementById('personResults');
-    if (!container) return;
-    
+    const container = document.getElementById('person-results');
     container.innerHTML = '';
     
     if (!results || results.length === 0) {
-        container.innerHTML = '<div class="no-results">No persons found</div>';
+        container.innerHTML = '<p class="no-results">No citizens found</p>';
         return;
     }
     
@@ -274,14 +244,86 @@ function displayPersonResults(results) {
     });
 }
 
-function displayVehicleResults(results) {
-    const container = document.getElementById('vehicleResults');
-    if (!container) return;
+// Create person card
+function createPersonCard(person) {
+    const card = document.createElement('div');
+    card.className = 'person-card';
+    card.innerHTML = `
+        <h3>${person.firstname} ${person.lastname}</h3>
+        <p>ID: ${person.citizenid}</p>
+        <p>DOB: ${person.dob}</p>
+        <button onclick="viewPersonDetails('${person.citizenid}')" class="btn-primary">View Details</button>
+    `;
+    return card;
+}
+
+// View person details
+function viewPersonDetails(citizenid) {
+    fetch(`https://${GetParentResourceName()}/getCitizenDetails`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ citizenid: citizenid })
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.success) {
+            displayPersonDetails(data.data);
+        }
+    });
+}
+
+// Display person details
+function displayPersonDetails(person) {
+    const modal = document.getElementById('person-modal');
+    const content = document.getElementById('person-modal-content');
     
+    content.innerHTML = `
+        <h2>${person.firstname} ${person.lastname}</h2>
+        <div class="person-details">
+            <p><strong>Citizen ID:</strong> ${person.citizenid}</p>
+            <p><strong>DOB:</strong> ${person.dob}</p>
+            <p><strong>Phone:</strong> ${person.phone || 'N/A'}</p>
+            <p><strong>License:</strong> ${person.license || 'None'}</p>
+            <p><strong>Job:</strong> ${person.job || 'Unemployed'}</p>
+        </div>
+        <div class="modal-actions">
+            <button onclick="closeModal('person-modal')" class="btn-secondary">Close</button>
+            <button onclick="issueFine('${person.citizenid}')" class="btn-primary">Issue Fine</button>
+        </div>
+    `;
+    
+    modal.style.display = 'flex';
+}
+
+// Search vehicle
+function searchVehicle() {
+    const query = document.getElementById('vehicle-search-input').value;
+    if (!query) return;
+    
+    fetch(`https://${GetParentResourceName()}/searchVehicle`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ plate: query })
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.success) {
+            displayVehicleResults(data.data);
+        }
+    });
+}
+
+// Display vehicle results
+function displayVehicleResults(results) {
+    const container = document.getElementById('vehicle-results');
     container.innerHTML = '';
     
     if (!results || results.length === 0) {
-        container.innerHTML = '<div class="no-results">No vehicles found</div>';
+        container.innerHTML = '<p class="no-results">No vehicles found</p>';
         return;
     }
     
@@ -291,226 +333,123 @@ function displayVehicleResults(results) {
     });
 }
 
-function displayIncidentResults(results) {
-    const container = document.getElementById('incidentsList');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    if (!results || results.length === 0) {
-        container.innerHTML = '<div class="no-results">No incidents found</div>';
-        return;
-    }
-    
-    results.forEach(incident => {
-        const card = createIncidentCard(incident);
-        container.appendChild(card);
-    });
-}
-
-function displayCustodyRecords(records) {
-    const container = document.getElementById('custodyList');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    if (!records || records.length === 0) {
-        container.innerHTML = '<div class="no-results">No custody records found</div>';
-        return;
-    }
-    
-    records.forEach(record => {
-        const card = createCustodyCard(record);
-        container.appendChild(card);
-    });
-}
-
-function updateDashboardStats(stats) {
-    if (!stats) return;
-    
-    document.getElementById('citizenCount').textContent = stats.citizens || 0;
-    document.getElementById('vehicleCount').textContent = stats.vehicles || 0;
-    document.getElementById('incidentCount').textContent = stats.incidents || 0;
-    document.getElementById('warrantCount').textContent = stats.warrants || 0;
-    document.getElementById('fineCount').textContent = stats.fines || 0;
-    document.getElementById('custodyCount').textContent = stats.custody || 0;
-}
-
-// Card creation functions
-function createPersonCard(person) {
-    const card = document.createElement('div');
-    card.className = 'result-card';
-    card.innerHTML = `
-        <div class="card-header">
-            <h3>${person.firstname} ${person.lastname}</h3>
-            <span class="badge">${person.citizenid}</span>
-        </div>
-        <div class="card-content">
-            <p><strong>Phone:</strong> ${person.phone || 'N/A'}</p>
-            <p><strong>Job:</strong> ${person.job || 'N/A'}</p>
-            <p><strong>Last Seen:</strong> ${person.last_seen || 'Unknown'}</p>
-        </div>
-        <div class="card-actions">
-            <button class="action-btn" onclick="viewPerson('${person.citizenid}')">View Details</button>
-            <button class="action-btn" onclick="createIncidentFor('${person.citizenid}')">Add Incident</button>
-        </div>
-    `;
-    return card;
-}
-
+// Create vehicle card
 function createVehicleCard(vehicle) {
     const card = document.createElement('div');
-    card.className = 'result-card';
+    card.className = 'vehicle-card';
     card.innerHTML = `
-        <div class="card-header">
-            <h3>${vehicle.model || 'Unknown Model'}</h3>
-            <span class="badge">${vehicle.plate}</span>
-        </div>
-        <div class="card-content">
-            <p><strong>Owner:</strong> ${vehicle.citizenid || 'Unknown'}</p>
-            <p><strong>Color:</strong> ${vehicle.color || 'N/A'}</p>
-            <p><strong>Status:</strong> ${vehicle.status || 'Active'}</p>
-        </div>
-        <div class="card-actions">
-            <button class="action-btn" onclick="viewVehicle('${vehicle.plate}')">View Details</button>
-            <button class="action-btn" onclick="createIncidentFor('${vehicle.plate}')">Add Incident</button>
-        </div>
+        <h3>${vehicle.model}</h3>
+        <p>Plate: ${vehicle.plate}</p>
+        <p>Owner: ${vehicle.owner}</p>
+        <button onclick="viewVehicleDetails('${vehicle.plate}')" class="btn-primary">View Details</button>
     `;
     return card;
 }
 
-function createIncidentCard(incident) {
-    const card = document.createElement('div');
-    card.className = 'result-card';
-    card.innerHTML = `
-        <div class="card-header">
-            <h3>${incident.title}</h3>
-            <span class="badge ${incident.priority}">${incident.priority}</span>
-        </div>
-        <div class="card-content">
-            <p><strong>Location:</strong> ${incident.location || 'Unknown'}</p>
-            <p><strong>Officer:</strong> ${incident.officer_name || 'Unknown'}</p>
-            <p><strong>Date:</strong> ${formatDate(incident.created_at)}</p>
-            <p class="incident-description">${incident.description}</p>
-        </div>
-        <div class="card-actions">
-            <button class="action-btn" onclick="viewIncident('${incident.incident_id}')">View Details</button>
-            <button class="action-btn" onclick="updateIncident('${incident.incident_id}')">Update</button>
-        </div>
-    `;
-    return card;
-}
-
-function createCustodyCard(record) {
-    const card = document.createElement('div');
-    card.className = 'result-card';
-    
-    const remainingTime = Math.max(0, record.end_time - Date.now() / 1000);
-    const remainingMinutes = Math.floor(remainingTime / 60);
-    
-    card.innerHTML = `
-        <div class="card-header">
-            <h3>${record.firstname} ${record.lastname}</h3>
-            <span class="badge">${record.cell_id}</span>
-        </div>
-        <div class="card-content">
-            <p><strong>Charges:</strong> ${record.charges || 'Not specified'}</p>
-            <p><strong>Remaining:</strong> ${remainingMinutes} minutes</p>
-            <p><strong>Officer:</strong> ${record.officer_name || 'Unknown'}</p>
-            <p><strong>Status:</strong> ${record.status}</p>
-        </div>
-        <div class="card-actions">
-            <button class="action-btn" onclick="viewCustody('${record.citizenid}')">View Details</button>
-            <button class="action-btn" onclick="releaseCustody('${record.citizenid}')">Release</button>
-        </div>
-    `;
-    return card;
-}
-
-// Form visibility functions
-function showCreateIncident() {
-    document.getElementById('createIncidentForm').style.display = 'block';
-}
-
-function hideCreateIncident() {
-    document.getElementById('createIncidentForm').style.display = 'none';
-}
-
-function showCreateFine() {
-    document.getElementById('createFineForm').style.display = 'block';
-}
-
-function hideCreateFine() {
-    document.getElementById('createFineForm').style.display = 'none';
-}
-
-function showCreateCustody() {
-    document.getElementById('createCustodyForm').style.display = 'block';
-}
-
-function hideCreateCustody() {
-    document.getElementById('createCustodyForm').style.display = 'none';
-}
-
-// Theme switching
-function switchTheme(themeName) {
-    theme = themeName;
-    document.body.setAttribute('data-theme', themeName);
-    
-    // Update active theme button
-    document.querySelectorAll('.theme-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    document.querySelector(`[data-theme="${themeName}"]`).classList.add('active');
-    
-    // Save theme preference
-    localStorage.setItem('zmdt-theme', themeName);
-}
-
-function loadTheme() {
-    const savedTheme = localStorage.getItem('zmdt-theme') || 'purple-blue';
-    switchTheme(savedTheme);
-}
-
-// Utility functions
-function formatDate(dateString) {
-    return new Date(dateString).toLocaleDateString();
-}
-
-function formatTime(seconds) {
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    if (hours > 0) {
-        return `${hours}h ${minutes % 60}m`;
-    }
-    return `${minutes}m`;
-}
-
-// Open MDT
-function openMDT(data) {
-    isMDTReady = true;
-    playerData = data;
-    document.body.style.display = 'block';
-    
-    // Update user info
-    if (data.player) {
-        document.getElementById('userName').textContent = data.player.name;
-        document.getElementById('userRole').textContent = data.player.job.toUpperCase();
-        document.getElementById('userInitial').textContent = data.player.name.charAt(0);
-    }
-    
-    fetchDashboardStats();
-}
-
-// Close MDT
-function closeMDT() {
-    isMDTReady = false;
-    document.body.style.display = 'none';
-    fetch(`https://${GetParentResourceName()}/closeMDT`, {
+// Fetch fines
+function fetchFines() {
+    fetch(`https://${GetParentResourceName()}/getAllFines`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json'
+        },
         body: JSON.stringify({})
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.success) {
+            displayFines(data.data);
+        }
     });
+}
+
+// Display fines
+function displayFines(fines) {
+    const container = document.getElementById('fines-list');
+    container.innerHTML = '';
+    
+    if (!fines || fines.length === 0) {
+        container.innerHTML = '<p class="no-results">No fines found</p>';
+        return;
+    }
+    
+    fines.forEach(fine => {
+        const card = createFineCard(fine);
+        container.appendChild(card);
+    });
+}
+
+// Create fine card
+function createFineCard(fine) {
+    const card = document.createElement('div');
+    card.className = 'fine-card';
+    
+    const statusClass = fine.status === 'paid' ? 'status-paid' : 
+                       fine.status === 'cancelled' ? 'status-cancelled' : 'status-pending';
+    
+    card.innerHTML = `
+        <div class="fine-header">
+            <h3>Fine ${fine.fine_id}</h3>
+            <span class="fine-status ${statusClass}">${fine.status.toUpperCase()}</span>
+        </div>
+        <div class="fine-details">
+            <p><strong>Citizen:</strong> ${fine.firstname} ${fine.lastname}</p>
+            <p><strong>Amount:</strong> £${fine.total_amount}</p>
+            <p><strong>Points:</strong> ${fine.penalty_points}</p>
+            <p><strong>Issued by:</strong> ${fine.issued_by_name}</p>
+        </div>
+        <div class="fine-actions">
+            ${fine.status === 'unpaid' ? `
+                <button onclick="payFine('${fine.fine_id}')" class="btn-success">Pay</button>
+                <button onclick="cancelFine('${fine.fine_id}')" class="btn-danger">Cancel</button>
+            ` : ''}
+        </div>
+    `;
+    
+    return card;
+}
+
+// Pay fine
+function payFine(fineId) {
+    fetch(`https://${GetParentResourceName()}/payFine`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ fineId: fineId })
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.success) {
+            fetchFines();
+            displayNotification('Fine paid successfully', 'success');
+        }
+    });
+}
+
+// Cancel fine
+function cancelFine(fineId) {
+    if (!confirm('Are you sure you want to cancel this fine?')) return;
+    
+    fetch(`https://${GetParentResourceName()}/cancelFine`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ fineId: fineId })
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.success) {
+            fetchFines();
+            displayNotification('Fine cancelled successfully', 'success');
+        }
+    });
+}
+
+// Close modal
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
 }
 
 // Display notification
@@ -524,6 +463,25 @@ function displayNotification(message, type) {
     setTimeout(() => {
         notification.remove();
     }, 3000);
+}
+
+// Theme switching
+function switchTheme(newTheme) {
+    theme = newTheme;
+    localStorage.setItem('zmdt-theme', newTheme);
+    document.body.className = `theme-${newTheme}`;
+}
+
+// Load theme
+function loadTheme() {
+    const savedTheme = localStorage.getItem('zmdt-theme') || 'purple-blue';
+    switchTheme(savedTheme);
+}
+
+// Load theme
+function loadTheme() {
+    const savedTheme = localStorage.getItem('zmdt-theme') || 'purple-blue';
+    switchTheme(savedTheme);
 }
 
 // Refresh dashboard
