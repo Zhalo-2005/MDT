@@ -33,11 +33,11 @@ server_scripts {
     'server/medical.lua'
 }
 
-ui_page 'web/index_improved.html'
+ui_page 'web/index.html'
 
 files {
-    'web/index_improved.html',
-    'web/js/main_improved.js',
+    'web/index.html',
+    'web/js/main.js',
     'web/css/style.css',
     'web/assets/*.png',
     'zmdt_tablet.png'

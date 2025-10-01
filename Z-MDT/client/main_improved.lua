@@ -1,3 +1,4 @@
+-- Z-MDT Client Main (Fixed Integration)
 local QBCore = exports['qb-core']:GetCoreObject()
 local PlayerData = {}
 local isTabletOpen = false
@@ -23,34 +24,19 @@ function HasMDTAccess()
     
     local job = PlayerData.job.name:lower()
     
-    -- Simplified job detection - just check if it's police/ambulance
     local policeJobs = {'police', 'sheriff', 'state', 'fbi', 'dea'}
     local medicalJobs = {'ambulance', 'ems', 'doctor'}
     
     for _, policeJob in ipairs(policeJobs) do
-        if job == policeJob then
-            return true
-        end
+        if job == policeJob then return true end
     end
     
     for _, medicalJob in ipairs(medicalJobs) do
-        if job == medicalJob then
-            return true
-        end
+        if job == medicalJob then return true end
     end
     
     return false
 end
-
--- Tablet Usage
-RegisterNetEvent('zmdt:client:useTablet', function()
-    if not HasMDTAccess() then
-        QBCore.Functions.Notify("You do not have access to the MDT system", 'error')
-        return
-    end
-    
-    OpenMDT()
-end)
 
 -- Create and attach tablet prop
 function AttachTabletProp()
@@ -73,7 +59,6 @@ function AttachTabletProp()
     
     tabletProp = tabletObj
     
-    -- Play animation
     TaskPlayAnim(ped, tabletDict, tabletAnim, 3.0, 3.0, -1, 49, 0, false, false, false)
 end
 
@@ -94,35 +79,10 @@ function OpenMDT()
     isTabletOpen = true
     SetNuiFocus(true, true)
     
-    -- Attach tablet prop
     AttachTabletProp()
     
-    -- Get MDT data
-    QBCore.Functions.TriggerCallback('zmdt:server:getMDTData', function(data)
-        if data then
-            SendNUIMessage({
-                action = 'openMDT',
-                data = data
-            })
-        else
-            QBCore.Functions.Notify('Failed to load MDT data', 'error')
-            CloseMDT()
-        end
-    end)
-    
-    -- Disable controls while tablet is open
-    CreateThread(function()
-        while isTabletOpen do
-            DisableControlAction(0, 1, true) -- LookLeftRight
-            DisableControlAction(0, 2, true) -- LookUpDown
-            DisableControlAction(0, 24, true) -- Attack
-            DisableControlAction(0, 25, true) -- Aim
-            DisableControlAction(0, 257, true) -- Attack2
-            DisableControlAction(0, 263, true) -- Melee Attack1
-            DisablePlayerFiring(PlayerId(), true) -- Disable weapon firing
-            Wait(0)
-        end
-    end)
+    -- Request data from server
+    TriggerServerEvent('zmdt:server:getMDTData')
 end
 
 -- Close MDT
@@ -132,11 +92,8 @@ function CloseMDT()
     isTabletOpen = false
     SetNuiFocus(false, false)
     
-    SendNUIMessage({
-        action = 'closeMDT'
-    })
+    SendNUIMessage({ action = 'closeMDT' })
     
-    -- Remove tablet prop
     RemoveTabletProp()
 end
 
@@ -147,15 +104,13 @@ RegisterNUICallback('closeMDT', function(data, cb)
 end)
 
 RegisterNUICallback('searchPerson', function(data, cb)
-    QBCore.Functions.TriggerCallback('zmdt:server:searchPerson', function(result)
-        cb(result)
-    end, data.query)
+    TriggerServerEvent('zmdt:server:searchPerson', data)
+    cb('ok')
 end)
 
 RegisterNUICallback('searchVehicle', function(data, cb)
-    QBCore.Functions.TriggerCallback('zmdt:server:searchVehicle', function(result)
-        cb(result)
-    end, data.query)
+    TriggerServerEvent('zmdt:server:searchVehicle', data)
+    cb('ok')
 end)
 
 RegisterNUICallback('createIncident', function(data, cb)
@@ -163,86 +118,95 @@ RegisterNUICallback('createIncident', function(data, cb)
     cb('ok')
 end)
 
-RegisterNUICallback('issueFine', function(data, cb)
-    TriggerServerEvent('zmdt:server:issueFine', data)
-    cb('ok')
-end)
-
-RegisterNUICallback('createWarrant', function(data, cb)
-    TriggerServerEvent('zmdt:server:createWarrant', data)
-    cb('ok')
-end)
-
-RegisterNUICallback('takeMugshot', function(data, cb)
-    TakeMugshot(data.citizenid)
-    cb('ok')
-end)
-
-RegisterNUICallback('updatePerson', function(data, cb)
-    TriggerServerEvent('zmdt:server:updatePerson', data)
-    cb('ok')
-end)
-
-RegisterNUICallback('updateVehicle', function(data, cb)
-    TriggerServerEvent('zmdt:server:updateVehicle', data)
+RegisterNUICallback('createFine', function(data, cb)
+    TriggerServerEvent('zmdt:server:createFine', data)
     cb('ok')
 end)
 
 RegisterNUICallback('createCustody', function(data, cb)
-    TriggerServerEvent('zmdt:server:createCustody', data)
+    TriggerServerEvent('zmdt:server:createCustodyAndJail', data)
     cb('ok')
 end)
 
 RegisterNUICallback('releaseCustody', function(data, cb)
-    TriggerServerEvent('zmdt:server:releaseCustody', data)
+    TriggerServerEvent('zmdt:server:releaseFromCustody', data)
     cb('ok')
 end)
 
-RegisterNUICallback('createMedicalRecord', function(data, cb)
-    TriggerServerEvent('zmdt:server:createMedicalRecord', data)
-    cb('ok')
-end)
-
--- Events
-RegisterNetEvent('zmdt:client:createFineBlip', function(coords, fineId)
-    local blip = AddBlipForCoord(coords.x, coords.y, coords.z)
-    SetBlipSprite(blip, Config.Blips.fine_payment.sprite)
-    SetBlipColour(blip, Config.Blips.fine_payment.color)
-    SetBlipScale(blip, Config.Blips.fine_payment.scale)
-    SetBlipAsShortRange(blip, true)
-    BeginTextCommandSetBlipName('STRING')
-    AddTextComponentString(Config.Blips.fine_payment.label)
-    EndTextCommandSetBlipName(blip)
-end)
-
-RegisterNetEvent('zmdt:client:removeFineBlip', function(fineId)
-    if currentBlips[fineId] then
-        RemoveBlip(currentBlips[fineId])
-        currentBlips[fineId] = nil
+-- Server event handlers
+RegisterNetEvent('zmdt:client:mdtData')
+AddEventHandler('zmdt:client:mdtData', function(data)
+    if data then
+        SendNUIMessage({
+            action = 'openMDT',
+            data = data
+        })
+    else
+        QBCore.Functions.Notify('Failed to load MDT data', 'error')
+        CloseMDT()
     end
 end)
 
-RegisterNetEvent('zmdt:client:createIncidentBlip', function(coords, incidentId)
-    local blip = AddBlipForCoord(coords.x, coords.y, coords.z)
-    SetBlipSprite(blip, Config.Blips.incident.sprite)
-    SetBlipColour(blip, Config.Blips.incident.color)
-    SetBlipScale(blip, Config.Blips.incident.scale)
-    SetBlipAsShortRange(blip, false)
-    BeginTextCommandSetBlipName('STRING')
-    AddTextComponentString(Config.Blips.incident.label)
-    EndTextCommandSetBlipName(blip)
+RegisterNetEvent('zmdt:client:dashboardStats')
+AddEventHandler('zmdt:client:dashboardStats', function(stats)
+    SendNUIMessage({
+        action = 'dashboardStats',
+        stats = stats
+    })
+end)
+
+RegisterNetEvent('zmdt:client:searchResults')
+AddEventHandler('zmdt:client:searchResults', function(results)
+    SendNUIMessage({
+        action = 'searchResults',
+        results = results
+    })
+end)
+
+RegisterNetEvent('zmdt:client:vehicleSearchResults')
+AddEventHandler('zmdt:client:vehicleSearchResults', function(results)
+    SendNUIMessage({
+        action = 'vehicleSearchResults',
+        results = results
+    })
+end)
+
+RegisterNetEvent('zmdt:client:incidentResults')
+AddEventHandler('zmdt:client:incidentResults', function(results)
+    SendNUIMessage({
+        action = 'incidentResults',
+        results = results
+    })
+end)
+
+RegisterNetEvent('zmdt:client:custodyRecords')
+AddEventHandler('zmdt:client:custodyRecords', function(results)
+    SendNUIMessage({
+        action = 'custodyRecords',
+        results = results
+    })
+end)
+
+RegisterNetEvent('zmdt:client:notification')
+AddEventHandler('zmdt:client:notification', function(message, type)
+    SendNUIMessage({
+        action = 'notification',
+        message = message,
+        type = type
+    })
+end)
+
+-- Tablet Usage
+RegisterNetEvent('zmdt:client:useTablet', function()
+    if not HasMDTAccess() then
+        QBCore.Functions.Notify("You don't have access to the MDT system", 'error')
+        return
+    end
     
-    currentBlips['incident_' .. incidentId] = blip
+    OpenMDT()
 end)
 
-RegisterNetEvent('zmdt:client:removeIncidentBlip', function(incidentId)
-    if currentBlips['incident_' .. incidentId] then
-        RemoveBlip(currentBlips['incident_' .. incidentId])
-        currentBlips['incident_' .. incidentId] = nil
-    end
-end)
-
--- Keybind for tablet (optional)
+-- Keybind for tablet
 RegisterKeyMapping('openmdt', 'Open MDT Tablet', 'keyboard', 'F6')
 RegisterCommand('openmdt', function()
     if HasMDTAccess() then
@@ -261,13 +225,7 @@ elseif GetResourceState('ox_inventory') ~= 'missing' then
     end)
 end
 
--- Mugshot function
-function TakeMugshot(citizenid)
-    -- Placeholder for mugshot functionality
-    QBCore.Functions.Notify('Mugshot functionality coming soon', 'info')
-end
-
--- Exports
+-- Export functions
 exports('HasMDTAccess', HasMDTAccess)
 exports('OpenMDT', OpenMDT)
 exports('CloseMDT', CloseMDT)
