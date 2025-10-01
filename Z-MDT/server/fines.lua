@@ -263,12 +263,10 @@ RegisterNetEvent('zmdt:server:payFine', function(fineId)
     local paymentSuccess = false
     
     if Config.Integrations.Banking == 'okokBanking' then
-        -- okokBanking integration
         exports['okokBanking']:RemoveMoney(src, fine.total_amount, 'Fine Payment: ' .. fine.fine_id)
         exports['okokBanking']:AddMoney(Config.Banking.fine_account, fine.total_amount, 'Fine Payment: ' .. fine.fine_id)
         paymentSuccess = true
     elseif Config.Integrations.Banking == 'qb-banking' then
-        -- qb-banking integration
         if accountType == 'cash' then
             Player.Functions.RemoveMoney('cash', fine.total_amount, 'Fine Payment: ' .. fine.fine_id)
         else
@@ -277,12 +275,10 @@ RegisterNetEvent('zmdt:server:payFine', function(fineId)
         exports['qb-management']:AddMoney(Config.Banking.fine_account, fine.total_amount)
         paymentSuccess = true
     elseif Config.Integrations.Banking == 'codm-banking' then
-        -- codm-banking integration
         exports['codm-banking']:RemoveMoney(src, accountType, fine.total_amount, 'Fine Payment: ' .. fine.fine_id)
         exports['codm-banking']:AddMoneyToSociety(Config.Banking.fine_account, fine.total_amount)
         paymentSuccess = true
     elseif Config.Integrations.Banking == 'qb-management' then
-        -- Direct qb-management integration
         if accountType == 'cash' then
             Player.Functions.RemoveMoney('cash', fine.total_amount, 'Fine Payment: ' .. fine.fine_id)
         else
@@ -291,7 +287,6 @@ RegisterNetEvent('zmdt:server:payFine', function(fineId)
         exports['qb-management']:AddMoney(Config.Banking.fine_account, fine.total_amount)
         paymentSuccess = true
     else
-        -- Default QBCore money handling
         if accountType == 'cash' then
             Player.Functions.RemoveMoney('cash', fine.total_amount, 'Fine Payment: ' .. fine.fine_id)
         else
@@ -330,7 +325,7 @@ RegisterNetEvent('zmdt:server:payFine', function(fineId)
             }
             
             PerformHttpRequest(Config.Webhooks.fines, function(err, text, headers) end, 'POST', json.encode(message), {['Content-Type'] = 'application/json'})
-        }
+        end
         
         -- Remove blip
         TriggerClientEvent('zmdt:client:removeFineBlip', src, fineId)
@@ -360,7 +355,7 @@ RegisterNetEvent('zmdt:server:cancelFine', function(fineId)
     local Player = QBCore.Functions.GetPlayer(src)
     if not Player then return end
     
-    -- Check if player has permission to issue fines (required to cancel)
+    -- Check if player has permission to issue/cancel fines
     if not IsJobAllowed(Player.PlayerData.job.name, 'issue_fines') then
         TriggerClientEvent('QBCore:Notify', src, 'You do not have permission to cancel fines', 'error')
         return
@@ -385,9 +380,9 @@ RegisterNetEvent('zmdt:server:cancelFine', function(fineId)
     -- Update fine status
     MySQL.update('UPDATE zmdt_fines SET status = ? WHERE fine_id = ?', {'cancelled', fineId})
     
-    -- Revert penalty points
-    if fine.penalty_points > 0 then
-        MySQL.query('UPDATE zmdt_citizens SET penalty_points = GREATEST(0, penalty_points - ?) WHERE citizenid = ?', {fine.penalty_points, fine.citizenid})
+    -- Revert penalty points if any
+    if fine.penalty_points and fine.penalty_points > 0 then
+        MySQL.update('UPDATE zmdt_citizens SET penalty_points = GREATEST(0, penalty_points - ?) WHERE citizenid = ?', {fine.penalty_points, fine.citizenid})
     end
     
     -- Log action
@@ -403,9 +398,9 @@ RegisterNetEvent('zmdt:server:cancelFine', function(fineId)
                     description = "A fine has been cancelled",
                     color = 10038562,
                     fields = {
-                        {name = "Fine ID", value = fineId, inline = true},
+                        {name = "Fine ID", value = tostring(fineId), inline = true},
                         {name = "Citizen", value = citizenName, inline = true},
-                        {name = "Amount", value = "£" .. fine.total_amount, inline = true},
+                        {name = "Amount", value = "£" .. tostring(fine.total_amount or 0), inline = true},
                         {name = "Cancelled By", value = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname, inline = true}
                     },
                     footer = {
@@ -416,15 +411,15 @@ RegisterNetEvent('zmdt:server:cancelFine', function(fineId)
         }
         
         PerformHttpRequest(Config.Webhooks.fines, function(err, text, headers) end, 'POST', json.encode(message), {['Content-Type'] = 'application/json'})
-    }
+    end
     
     -- Remove blip for all players
     TriggerClientEvent('zmdt:client:removeFineBlip', -1, fineId)
     
-    -- Notify client
+    -- Notify cancelling player
     TriggerClientEvent('QBCore:Notify', src, 'Fine cancelled successfully', 'success')
     
-    -- Find target player if online
+    -- Notify target player if online
     local targetPlayer = QBCore.Functions.GetPlayerByCitizenId(fine.citizenid)
     if targetPlayer then
         TriggerClientEvent('QBCore:Notify', targetPlayer.PlayerData.source, 'Your fine has been cancelled', 'success')
@@ -444,6 +439,7 @@ RegisterNetEvent('zmdt:server:cancelFine', function(fineId)
         PerformHttpRequest(Config.GoogleSheets.webhook_url, function(err, text, headers) end, 'POST', json.encode(sheetData), {['Content-Type'] = 'application/json'})
     end
 end)
+
 
 -- Helper function to split string
 function SplitString(inputstr, sep)
